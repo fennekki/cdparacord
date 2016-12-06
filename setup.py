@@ -29,14 +29,17 @@ setup(
 
     keywords='cdparanoia cd ripping',
 
-    install_requires=[''],
+    install_requires=[
+        'musicbrainzngs',
+        'discid'
+    ],
 
     package_data={},
     data_files=[],
 
     entry_points={
         'console_scripts': [
-            'cdparacord=cdparacord:main'
+            'cdparacord=cdparacord.main:main'
         ]
     }
 )

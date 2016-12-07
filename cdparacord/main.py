@@ -61,13 +61,15 @@ async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
             .replace(".", "_"))
 
     # Asynch encode this stuff with lame
-    await asyncio.create_subprocess_exec(
+    proc = await asyncio.create_subprocess_exec(
         lame, "-V2",
         "{tmpdir}/{track_num}.wav".format(
             tmpdir=tmpdir, track_num=track_num),
         final_name
     )
+    await proc.wait()
 
+    print("Encoded {}, tagging".format(track_title))
     await asyncio.sleep(1)
 
     try:
@@ -81,6 +83,7 @@ async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
     audiofile["tracknumber"] = str(track_num)
     audiofile["date"] = date
     audiofile.save()
+    print("Tagged {}".format(track_title))
 
 
 def main():

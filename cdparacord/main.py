@@ -139,7 +139,7 @@ def main():
 
             # Generate right amount of track entries
             for i in range(selected["track_count"]):
-                tracks.append("")
+                selected["tracks"].append("")
 
         tempfile = NamedTemporaryFile(
                 prefix="cdparacord", mode="w+", delete=False)
@@ -152,7 +152,7 @@ def main():
          ]
 
         for track in selected["tracks"]:
-            d.append("TRACK={}\n".format())
+            d.append("TRACK={}\n".format(track))
 
         tempfile.writelines(d)
         tempfile.close()
@@ -161,7 +161,10 @@ def main():
         subprocess.run(["/usr/bin/env", "vim", tempfile_name])
 
         # Track count doesn't change
-        final = {"track_count": selected["track_count"]}
+        final = {
+            "track_count": selected["track_count"],
+            "tracks": []
+        }
 
         # Parse the file to a map again
         with open(tempfile_name, mode="r") as tempfile:
@@ -176,7 +179,7 @@ def main():
 
         # Check that we haven't somehow given names for the wrong amount
         # of tracks
-        if len(final["tracks"] != final["track_count"]):
+        if len(final["tracks"]) != final["track_count"]:
             raise TagError("Wrong tag count: expected {}, got {}"
                            .format(final["track_count"],
                                    len(final["tracks"])))

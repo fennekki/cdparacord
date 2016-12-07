@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 import asyncio
 import musicbrainzngs
@@ -86,7 +87,7 @@ async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
     print("Tagged {}".format(track_title))
 
 
-def main():
+def main(args):
     # Import discid here because it might raise
     import discid
 
@@ -244,8 +245,19 @@ def main():
         os.makedirs(albumdir)
         loop = asyncio.get_event_loop()
         tasks = []
-        print("Starting rip of {} tracks".format(final["track_count"]))
-        for i in range(1, final["track_count"] + 1):
+
+        if len(args) > 1:
+            start_track = int(args[1])
+            if len(args) > 2:
+                end_track = int(args[2])
+            else:
+                end_track = int(args[1])
+        else:
+            start_track = 1
+            end_track = final["track_count"]
+
+        print("Starting rip of tracks {}-{}".format(start_track, end_track))
+        for i in range(start_track, end_track + 1):
             tasks.append(asyncio.ensure_future(rip_encode_and_tag(
                 cdparanoia, lame, albumdir, tmpdir, i, final["artist"],
                 final["title"], final["tracks"][i - 1], final["date"]
@@ -256,12 +268,12 @@ def main():
         loop.close()
 
     # Temp dir destroyed
-    print("Done")
+    print("\n\nDone")
 
 
-if __name__ == "__main__":
+def entrypoint_wrapper():
     try:
-        main()
+        main(sys.argv)
     except OSError:
         print("The libdiscid was not found. Please make sure discid is"
               "installed before running cdparacord.")
@@ -271,3 +283,7 @@ if __name__ == "__main__":
     except LameError:
         print("A lame executable was not found. Please make sure"
               "lame is installed before running cdparacord.")
+
+
+if __name__ == "__main__":
+    entrypoint_wrapper()

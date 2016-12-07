@@ -44,7 +44,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'cdparacord=cdparacord.main:main'
+            'cdparacord=cdparacord.main:entrypoint_wrapper'
         ]
     }
 )

@@ -7,14 +7,18 @@ setup_dir = path.abspath(path.dirname(__file__))
 with open(path.join(setup_dir, "README.markdown"), encoding='utf-8') as f:
     long_description = f.read()
 
+# Get __version__ and __url__
+with open('./cdparacord/appinfo.py') as f:
+    exec(f.read())
+
 setup(
     name='cdparacord',
-    version='0.1.0',
+    version=__version__,
 
     description='Quick & dirty cdparanoia wrapper',
     long_description=long_description,
-    url='https://github.com/fennekki/cdparacord',
-    
+    url=__url__,
+
     author='fennekki',
 
     license='BSD 2-clause',
@@ -31,7 +35,8 @@ setup(
 
     install_requires=[
         'musicbrainzngs',
-        'discid'
+        'discid',
+        'eyeD3'
     ],
 
     package_data={},

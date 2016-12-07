@@ -1,7 +1,9 @@
 import os
 import subprocess
+import asyncio
 import musicbrainzngs
-import eyed3
+import mutagen
+import mutagen.easyid3
 
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from .appinfo import __version__, __url__
@@ -44,6 +46,39 @@ class TagError(Exception):
     pass
 
 
+async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
+                             artist, album, track_title, date):
+    subprocess.run([
+        cdparanoia, "--", str(track_num),
+        "{tmpdir}/{track_num}.wav".format(tmpdir=tmpdir, track_num=track_num)
+    ])
+
+    final_name = "{albumdir}/{track_num:02d} - {title}.mp3".format(
+            albumdir=albumdir, track_num=track_num, title=track_title)
+
+    # Asynch encode this stuff with lame
+    await asyncio.create_subprocess_exec(
+        lame, "-V2",
+        "{tmpdir}/{track_num}.wav".format(
+            tmpdir=tmpdir, track_num=track_num),
+        final_name
+    )
+
+    await asyncio.sleep(1)
+
+    try:
+        audiofile = mutagen.easyid3.EasyID3(final_name)
+    except:
+        audiofile = mutagen.File(final_name, easy=True)
+        audiofile.add_tags()
+    audiofile["artist"] = artist
+    audiofile["album"] = album
+    audiofile["title"] = track_title
+    audiofile["tracknumber"] = str(track_num)
+    audiofile["date"] = date
+    audiofile.save()
+
+
 def main():
     # Import discid here because it might raise
     import discid
@@ -70,6 +105,7 @@ def main():
             release_counter = 0
             data = result["disc"]["release-list"]
             for release in data:
+                # TODO date
                 albumdata = {}
                 albumdata["title"] = release["title"]
                 albumdata["tracks"] = []
@@ -148,6 +184,7 @@ def main():
         d = [
             "ARTIST={}\n".format(selected["artist"]),
             "TITLE={}\n".format(selected["title"]),
+            "DATE=\n",
             "TRACK_COUNT={}\n".format(selected["track_count"])
          ]
 
@@ -176,6 +213,8 @@ def main():
                     final["title"] = val
                 elif key == "TRACK":
                     final["tracks"].append(val)
+                elif key == "DATE":
+                    final["date"] = val
 
         # Check that we haven't somehow given names for the wrong amount
         # of tracks
@@ -185,48 +224,29 @@ def main():
                                    len(final["tracks"])))
 
         # TODO don't hardcode this I guess
+        # TODO the formatting should strip even more "special"
+        # characters
         # Where the mp3s will be put
         albumdir = "{home}/Music/{artist}/{album}/".format(
             home=os.environ["HOME"],
-            artist=final["artist"],
-            album=final["title"])
+            artist=final["artist"].replace("/", "-"),
+            album=final["title"].replace("/", "-"))\
+            .replace(": ", " - ")\
+            .replace(":", "-")
 
         os.makedirs(albumdir)
-        encode_jobs = []
-        final_names = []
+        loop = asyncio.get_event_loop()
+        tasks = []
         print("Starting rip of {} tracks".format(final["track_count"]))
         for i in range(1, final["track_count"] + 1):
-            subprocess.run([
-                cdparanoia, "--", str(i),
-                "{tmpdir}/{i}.wav".format(tmpdir=tmpdir, i=i)
-            ])
-            # Huff, but the i - 1 is only needed specifically here, i
-            # elsewhere too
-            track_title = final["tracks"][i - 1]
-            final_name = "{albumdir}/{i:02d} - {title}.mp3".format(
-                    albumdir=albumdir, i=i, title=track_title)
-            # So we can do the tagging eventually
-            final_names.append(final_name)
+            tasks.append(asyncio.ensure_future(rip_encode_and_tag(
+                cdparanoia, lame, albumdir, tmpdir, i, final["artist"],
+                final["title"], final["tracks"][i - 1], final["date"]
+            ), loop=loop))
 
-            # Asynch encode this stuff with lame
-            proc = subprocess.Popen([
-                lame, "-V2",
-                "{tmpdir}/{i}.wav".format(tmpdir=tmpdir, i=i),
-                final_name])
-            # So we can wait on it later
-            encode_jobs.append(proc)
-
-        # Wait till encodes are over and tag
-        file_counter = 0
-        for job in encode_jobs:
-            job.wait()
-            # Fortunately they're always in the same order
-            audiofile = eyed3.load(final_names[file_counter])
-            audiofile.tag.artist = final["artist"]
-            audiofile.tag.album = final["title"]
-            audiofile.tag.title = final["tracks"][file_counter]
-            audiofile.tag.track_num = file_counter + 1
-            audiofile.tag.save()
+        # Ensure we've run all tasks before we're done
+        loop.run_until_complete(asyncio.gather(*tasks))
+        loop.close()
 
     # Temp dir destroyed
     print("Done")

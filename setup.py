@@ -36,7 +36,7 @@ setup(
     install_requires=[
         'musicbrainzngs',
         'discid',
-        'eyeD3'
+        'mutagen'
     ],
 
     package_data={},

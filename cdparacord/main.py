@@ -125,13 +125,13 @@ def main(args):
                 print("---")
                 release_counter += 1
 
-                track_counter = 1
+                track_counter = 0
                 medium = release["medium-list"][0]
                 for track in medium["track-list"]:
+                    track_counter += 1
                     recording = track["recording"]
                     albumdata["tracks"].append(recording["title"])
                     print(track_counter, "-", recording["title"])
-                    track_counter += 1
                 albumdata["track_count"] = track_counter
                 parsed.append(albumdata)
                 print("------\n")
@@ -242,7 +242,11 @@ def main(args):
             .replace(": ", " - ")\
             .replace(":", "-")
 
-        os.makedirs(albumdir)
+        try:
+            os.makedirs(albumdir)
+        except FileExistsError:
+            print("Directory", albumdir, "already exists")
+            return
         loop = asyncio.get_event_loop()
         tasks = []
 
@@ -275,14 +279,14 @@ def entrypoint_wrapper():
     try:
         main(sys.argv)
     except OSError:
-        print("The libdiscid was not found. Please make sure discid is"
-              "installed before running cdparacord.")
+        print("The libdiscid library was not found. Please make sure discid"
+              " is installed before running cdparacord.")
     except ParanoiaError:
         print("A cdparanoia executable was not found. Please make sure"
-              "cdparanoia is installed before running cdparacord.")
+              " cdparanoia is installed before running cdparacord.")
     except LameError:
         print("A lame executable was not found. Please make sure"
-              "lame is installed before running cdparacord.")
+              " lame is installed before running cdparacord.")
 
 
 if __name__ == "__main__":

@@ -59,7 +59,8 @@ async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
             title=track_title.replace("/", "-")
             .replace(": ", " - ")
             .replace(":", "-")
-            .replace(".", "_"))
+            .replace(".", "_")
+            .replace("?", "_"))
 
     # Asynch encode this stuff with lame
     proc = await asyncio.create_subprocess_exec(

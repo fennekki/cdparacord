@@ -87,6 +87,8 @@ async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
     audiofile.save()
     print("Tagged {}".format(track_title))
 
+class MusicBrainzError(Exception):
+    pass
 
 def main(args):
     # Import discid here because it might raise
@@ -112,13 +114,39 @@ def main(args):
             parsed = []
 
             release_counter = 0
-            data = result["disc"]["release-list"]
-            for release in data:
-                # TODO date
+            if "disc" in result:
+                data = result["disc"]["release-list"]
+
+                for release in data:
+                    # TODO date
+                    albumdata = {}
+                    albumdata["title"] = release["title"]
+                    albumdata["tracks"] = []
+                    artist = release["artist-credit-phrase"]
+                    albumdata["artist"] = artist
+
+                    print("------")
+                    print(release_counter, "-", artist, "/", release["title"])
+                    print("---")
+                    release_counter += 1
+
+                    track_counter = 0
+                    medium = release["medium-list"][0]
+                    for track in medium["track-list"]:
+                        track_counter += 1
+                        recording = track["recording"]
+                        albumdata["tracks"].append(recording["title"])
+                        print(track_counter, "-", recording["title"])
+                    albumdata["track_count"] = track_counter
+                    parsed.append(albumdata)
+                    print("------\n")
+            elif "cdstub" in result:
+                release = result["cdstub"]
+
                 albumdata = {}
                 albumdata["title"] = release["title"]
                 albumdata["tracks"] = []
-                artist = release["artist-credit-phrase"]
+                artist = release["artist"]
                 albumdata["artist"] = artist
 
                 print("------")
@@ -127,15 +155,16 @@ def main(args):
                 release_counter += 1
 
                 track_counter = 0
-                medium = release["medium-list"][0]
-                for track in medium["track-list"]:
+                for track in release["track-list"]:
                     track_counter += 1
-                    recording = track["recording"]
-                    albumdata["tracks"].append(recording["title"])
-                    print(track_counter, "-", recording["title"])
+                    albumdata["tracks"].append(track["title"])
+                    print(track_counter, "-", track["title"])
                 albumdata["track_count"] = track_counter
                 parsed.append(albumdata)
                 print("------\n")
+            else:
+                raise MusicBrainzError("Could not found release in musicbrainz data!")
+
 
             sel = -1
             while sel < 0 or sel >= release_counter:

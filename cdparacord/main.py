@@ -151,7 +151,7 @@ def main(args):
                 albumdata["title"] = release["title"]
                 albumdata["date"] = release["date"]
                 albumdata["tracks"] = []
-                albumartist = release["albumartist"]
+                albumartist = release["artist"]
                 albumdata["albumartist"] = albumartist
 
                 print("------")

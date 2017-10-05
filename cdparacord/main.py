@@ -222,6 +222,7 @@ def main(args):
             # Generate right amount of track entries
             for i in range(selected["track_count"]):
                 selected["tracks"].append("")
+                selected["artists"].append("")
 
         tempfile = NamedTemporaryFile(
                 prefix="cdparacord", mode="w+", delete=False)

@@ -48,7 +48,7 @@ class TagError(Exception):
 
 
 async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
-                             artist, album, track_title, date):
+                             albumartist, album, track_title, artist, date):
     subprocess.run([
         cdparanoia, "--", str(track_num),
         "{tmpdir}/{track_num}.wav".format(tmpdir=tmpdir, track_num=track_num)
@@ -80,6 +80,7 @@ async def rip_encode_and_tag(cdparanoia, lame, albumdir, tmpdir, track_num,
         audiofile = mutagen.File(final_name, easy=True)
         audiofile.add_tags()
     audiofile["artist"] = artist
+    audiofile["albumartist"] = albumartist
     audiofile["album"] = album
     audiofile["title"] = track_title
     audiofile["tracknumber"] = str(track_num)
@@ -106,7 +107,7 @@ def main(args):
         try:
             musicbrainzngs.set_useragent("cdparacord", __version__, __url__)
             result = musicbrainzngs.get_releases_by_discid(
-                    disc.id, includes=["recordings", "artists"])
+                    disc.id, includes=["recordings", "artist-credits"])
 
             print("found")
 
@@ -121,12 +122,14 @@ def main(args):
                     # TODO date
                     albumdata = {}
                     albumdata["title"] = release["title"]
+                    albumdata["date"] = release["date"]
                     albumdata["tracks"] = []
-                    artist = release["artist-credit-phrase"]
-                    albumdata["artist"] = artist
+                    albumdata["artists"] = []
+                    albumartist = release["artist-credit-phrase"]
+                    albumdata["albumartist"] = albumartist
 
                     print("------")
-                    print(release_counter, "-", artist, "/", release["title"])
+                    print(release_counter, "-", albumartist, "/", release["title"])
                     print("---")
                     release_counter += 1
 
@@ -137,6 +140,7 @@ def main(args):
                         recording = track["recording"]
                         albumdata["tracks"].append(recording["title"])
                         print(track_counter, "-", recording["title"])
+                        albumdata["artists"].append(recording["artist-credit-phrase"])
                     albumdata["track_count"] = track_counter
                     parsed.append(albumdata)
                     print("------\n")
@@ -145,12 +149,13 @@ def main(args):
 
                 albumdata = {}
                 albumdata["title"] = release["title"]
+                albumdata["date"] = release["date"]
                 albumdata["tracks"] = []
-                artist = release["artist"]
-                albumdata["artist"] = artist
+                albumartist = release["albumartist"]
+                albumdata["albumartist"] = albumartist
 
                 print("------")
-                print(release_counter, "-", artist, "/", release["title"])
+                print(release_counter, "-", albumartist, "/", release["title"])
                 print("---")
                 release_counter += 1
 
@@ -158,6 +163,7 @@ def main(args):
                 for track in release["track-list"]:
                     track_counter += 1
                     albumdata["tracks"].append(track["title"])
+                    albumdata["artists"].append(albumartist)
                     print(track_counter, "-", track["title"])
                 albumdata["track_count"] = track_counter
                 parsed.append(albumdata)
@@ -206,9 +212,11 @@ def main(args):
             # Don't even give a shit about CD-Text
             selected = {
                 "title": "",
-                "artist": "",
+                "albumartist": "",
+                "date": "",
                 "track_count": num,
-                "tracks": []
+                "tracks": [],
+                "artists": []
             }
 
             # Generate right amount of track entries
@@ -220,14 +228,17 @@ def main(args):
         tempfile_name = tempfile.name
 
         d = [
-            "ARTIST={}\n".format(selected["artist"]),
+            "ALBUMARTIST={}\n".format(selected["albumartist"]),
             "TITLE={}\n".format(selected["title"]),
-            "DATE=\n",
+            "DATE={}\n".format(selected["date"]),
             "TRACK_COUNT={}\n".format(selected["track_count"])
          ]
 
-        for track in selected["tracks"]:
-            d.append("TRACK={}\n".format(track))
+        for i in range(len(selected["tracks"])):
+            # Group the tracks nicely
+            d.append("\n")
+            d.append("TRACK={}\n".format(selected["tracks"][i]))
+            d.append("ARTIST={}\n".format(selected["artists"][i]))
 
         tempfile.writelines(d)
         tempfile.close()
@@ -238,19 +249,28 @@ def main(args):
         # Track count doesn't change
         final = {
             "track_count": selected["track_count"],
-            "tracks": []
+            "tracks": [],
+            "artists": []
         }
 
         # Parse the file to a map again
         with open(tempfile_name, mode="r") as tempfile:
             for line in tempfile.readlines():
+                if line.rstrip() == "":
+                    # Skip this line, it's empty
+                    continue
                 key, val = line.rstrip().split("=", 1)
-                if key == "ARTIST":
-                    final["artist"] = val
+                if key == "ALBUMARTIST":
+                    final["albumartist"] = val
                 elif key == "TITLE":
                     final["title"] = val
                 elif key == "TRACK":
                     final["tracks"].append(val)
+                elif key == "ARTIST":
+                    if (val != ""):
+                        final["artists"].append(val)
+                    else:
+                        final["artists"].append(final["albumartist"])
                 elif key == "DATE":
                     final["date"] = val
 
@@ -261,13 +281,18 @@ def main(args):
                            .format(final["track_count"],
                                    len(final["tracks"])))
 
+        if len(final["artists"]) != final["track_count"]:
+            raise TagError("Wrong artist count: expected {}, got {}"
+                           .format(final["track_count"],
+                                   len(final["artists"])))
+
         # TODO don't hardcode this I guess
         # TODO the formatting should strip even more "special"
         # characters
         # Where the mp3s will be put
         albumdir = "{home}/Music/{artist}/{album}/".format(
             home=os.environ["HOME"],
-            artist=final["artist"].replace("/", "-"),
+            artist=final["albumartist"].replace("/", "-"),
             album=final["title"].replace("/", "-"))\
             .replace(": ", " - ")\
             .replace(":", "-")
@@ -293,8 +318,9 @@ def main(args):
         print("Starting rip of tracks {}-{}".format(start_track, end_track))
         for i in range(start_track, end_track + 1):
             tasks.append(asyncio.ensure_future(rip_encode_and_tag(
-                cdparanoia, lame, albumdir, tmpdir, i, final["artist"],
-                final["title"], final["tracks"][i - 1], final["date"]
+                cdparanoia, lame, albumdir, tmpdir, i, final["albumartist"],
+                final["title"], final["tracks"][i - 1], final["artists"][i - 1],
+                final["date"]
             ), loop=loop))
 
         # Ensure we've run all tasks before we're done

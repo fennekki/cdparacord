@@ -1,22 +1,39 @@
 # cdparacord
 
-`cdparacord` is a quick and dirty cdparanoia wrapper I wrote
-because apparently abcde is hot trash and breaks on non-ASCII
-characters.
+`cdparacord` is a wrapper for cdparanoia and LAME that rips, encodes and tags
+the tracks off a CD, and can use MusicBrainz to automatically populate the tags.
+
+It is, however, probably not very useful if you don't share my goals in using it
+(see below).
 
 ## Requirements
 
-`cdparacord` requires you to have installed `lame` (the LAME
-MP3 encoder executable), `libdiscid` (for detecting the disc
-ID of the CD in the drive) and `cdparanoia` itself. The
-`cdparanoia` and `lame` binaries are searched for at at runtime
-by going through the `PATH` environment variable - if your
-copies of these binaries are not called exactly the names I use
-here, you will have to modify cdparacord to search for the
-correct filenames. The `libdiscid` library is not explicitly
-checked for and need only be  somewhere your OS linker can find
-it.
+`cdparacord` requires LAME (for encoding), libdiscid (for reading disc ids for
+MusicBrainz), and cdparanoia (for the actual ripping).
 
-There are no version checks built into `cdparacord`; If a
-specific version of `lame`, `libdiscid` or `cdparanoia`
-causes it to malfunction, please file a bug.
+The `cdparanoia` and `lame` executables need to be in your `$PATH`, and
+`libdiscid.so` needs to be somewhere your linker can find it. Installing the
+relevant packages via your package manager will do this just fine but if you eg.
+have LAME in a non-standard location you will want to set `$PATH` before running
+cdparacord.
+
+There are no version checks built into `cdparacord`; If a specific version of
+LAME, libdiscid or cdparanoia causes it to malfunction, please file a bug.
+
+## Weird design choices
+
+The software hardcodes my preferences for things like directory and file names
+(`~/Music/Artist/Album/01 - Track.mp3`), LAME quality (`-V2`), how to replace
+"special" characters in filenames, the use of vim as the text editor and that
+albums that are single-artist shouldn't have the album artist tag. These are not
+bugs, though they could be made configurable.
+
+## Known issues
+
+`cdparacord` might tell you you're missing libdiscid if a CD is not inserted in
+your drive. This would be an easy fix but I keep forgetting to fix it.
+
+If something fails after entering disc information in a text editor, you lose
+the data you inputted. You can manually save it elsewhere to mitigate.
+
+The existence of cdparanoia is checked relatively late.

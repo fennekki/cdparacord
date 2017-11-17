@@ -16,7 +16,7 @@ def find_cdparanoia():
 
 def print_tracks(release_counter, albumdata):
     print("------")
-    print(release_counter, "-", albumartist, "/", albumdata["title"])
+    print(release_counter, "-", albumdata["albumartist"], "/", albumdata["title"])
     print("---")
 
     track_counter = 0
@@ -26,10 +26,11 @@ def print_tracks(release_counter, albumdata):
     print("------\n")
 
 
-def parsed_from_disc():
+def parsed_from_disc(result):
     parsed = []
     data = result["disc"]["release-list"]
 
+    release_counter = 0
     for release in data:
         albumdata = {}
         albumdata["title"] = release["title"]
@@ -55,7 +56,7 @@ def parsed_from_disc():
     return parsed
 
 
-def parsed_from_cdstub():
+def parsed_from_cdstub(result):
     release = result["cdstub"]
 
     albumdata = {}
@@ -65,7 +66,7 @@ def parsed_from_cdstub():
     albumartist = release["artist"]
     albumdata["albumartist"] = albumartist
 
-    release_counter += 1
+    release_counter = 1
 
     track_counter = 0
     for track in release["track-list"]:
@@ -90,23 +91,23 @@ def musicbrainz_fetch(disc):
         print("found")
 
         print("Pick release: ")
-        release_counter = 0
         if "disc" in result:
-            parsed = albumdata_from_disc()
+            parsed = parsed_from_disc(result)
         elif "cdstub" in result:
-            parsed = albumdata_from_cdstub()
+            parsed = parsed_from_cdstub(result)
         else:
             raise CdparacordError("No albumdata found")
 
         sel = -1
-        while sel < 0 or sel >= release_counter:
+        release_count = len(parsed)
+        while sel < 1 or sel > release_count:
             try:
                 sel = int(input("Number between {}-{}: "
-                                .format(0, release_counter - 1)))
+                                .format(1, release_count)))
             except:
                 pass
 
-        selected = parsed[sel]
+        selected = parsed[sel - 1]
 
     except musicbrainzngs.ResponseError:
         print("not found")

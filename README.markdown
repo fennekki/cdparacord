@@ -30,6 +30,10 @@ bugs, though they could be made configurable.
 
 ## Known issues
 
+After cdparacord puts you in vim, there's no way to terminate cdparacord before
+it starts ripping other than inputting erroneous data (which you will
+subsequently lose).
+
 If something fails after entering disc information in a text editor, you lose
 the data you inputted. You can manually save it elsewhere to mitigate.
 

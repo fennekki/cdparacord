@@ -160,7 +160,8 @@ def get_final_albumdata():
 
     print("Fetching disc id...", end=" ")
     disc = discid.read()
-    print(disc)
+    print("Id:", disc)
+    print("Submission url:", disc.submission_url)
 
     print("Fetching data from MusicBrainz...", end=" ")
     selected = musicbrainz_fetch(disc)

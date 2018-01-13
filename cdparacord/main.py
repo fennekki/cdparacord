@@ -82,6 +82,9 @@ def main(args):
 def entrypoint_wrapper():
     try:
         main(sys.argv)
+    except IOError:
+        print("Error reading disc. Please make sure there's a music CD in your"
+              " drive before running cdparacord.")
     except OSError:
         print("The libdiscid library was not found. Please make sure discid"
               " is installed before running cdparacord.")

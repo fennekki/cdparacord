@@ -30,9 +30,6 @@ bugs, though they could be made configurable.
 
 ## Known issues
 
-`cdparacord` might tell you you're missing libdiscid if a CD is not inserted in
-your drive. This would be an easy fix but I keep forgetting to fix it.
-
 If something fails after entering disc information in a text editor, you lose
 the data you inputted. You can manually save it elsewhere to mitigate.
 

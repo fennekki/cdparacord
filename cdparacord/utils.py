@@ -1,9 +1,6 @@
 """Generic useful tools."""
 import os
 
-class CdparacordError(Exception):
-    pass
-
 
 def print_error(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)

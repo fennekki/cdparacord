@@ -1,0 +1,2 @@
+class CdparacordError(Exception):
+    pass

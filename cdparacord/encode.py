@@ -4,8 +4,8 @@ import mutagen.easyid3
 
 import asyncio
 from sys import stderr
-from .utils import print_error, sanitise_filename, \
-    CdparacordError
+from .utils import print_error, sanitise_filename
+from .error import CdparacordError
 
 # Module_level lock for the ripper
 rip_lock = asyncio.Lock()

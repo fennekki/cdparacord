@@ -36,7 +36,9 @@ setup(
     install_requires=[
         'musicbrainzngs',
         'discid',
-        'mutagen'
+        'mutagen',
+        'xdg',
+        'PyYAML'
     ],
 
     package_data={},

@@ -1,9 +1,10 @@
 """System for configuring cdparacord."""
 
-import yaml
 import os
-from .error import CdparacordError
+import yaml
+from copy import deepcopy
 from xdg import XDG_CONFIG_HOME
+from .error import CdparacordError
 
 class ConfigError(CdparacordError):
     """Raised on configuration error."""
@@ -15,13 +16,14 @@ class Config:
     The functionality is partially in the class and partially in the
     instance, for no reason in particular.
     """
-    config_dir_name = 'cdparacord'
-    config_dir = os.path.join(XDG_CONFIG_HOME, Config.config_dir_name)
-    config_file_name = 'config.yaml'
-    config_file = os.path.join(config_dir, config_file_name)
+    __config_dir_name = 'cdparacord'
+    __config_dir = os.path.join(XDG_CONFIG_HOME, Config.__config_dir_name)
+    __config_file_name = 'config.yaml'
+    __config_file = os.path.join(
+            Config.__config_dir, Config.__config_file_name)
 
     # TODO: Put this somewhere else
-    default_config = {
+    __default_config = {
         'lame':  {
             'executable': 'lame',
             'search_dirs': os.environ['PATH'].split(os.pathsep)
@@ -48,7 +50,10 @@ class Config:
             raise ConfigError('Unknown issue creating configuration directory')
 
         # Load default config
-        config = Config.default_config.copy()
+        # Here we take a deepcopy so any instance cannot mutate the
+        # class default configuration by accident. Note that it can
+        # still be mutated, just not through Config.get()
+        config = Config.__default_config.deepcopy()
 
         # Now we check if the file exists.
         # There are two obvious race conditions here:
@@ -75,3 +80,29 @@ class Config:
                 raise ConfigError('Could not open configuration file')
         
         self.__config = config
+
+    def get(key):
+        """Fetch a configuration value.
+        
+        NOTE: Unlike dict.get, Config.get throws KeyError on access!
+        (Indeed, the KeyError originates in a direct access to the
+        dictionary.) This is intentional and derives from the idea that
+        the default config should contain all the variables the program
+        would ever access, even if empty, serving as a documentation for
+        them. Therefore running the program with no configuration file
+        would either function correctly (in the absence of KeyErrors) or
+        fail to do so (because a nonexistent configuration value was
+        requested).
+
+        It's also worth noting that the program can mutate whatever
+        mutable values are stored here. This doesn't seem worthwile to
+        defend against, considering this software is the only consumer
+        of its own settings. If it however turns out to be an issue,
+        something *could* be done I suppose.
+        For now, the only safeguard is a deep copy to guard against
+        accidentally mutating the default configuration (which would
+        then affect *future* instances). This may seem like a weird
+        choice, but it is in fact exactly equivalent to initialising the
+        default config for each object separately in __init__.
+        """
+        return self.__config[key]

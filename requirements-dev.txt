@@ -1,0 +1,3 @@
+pytest
+coveralls-python
+coverage

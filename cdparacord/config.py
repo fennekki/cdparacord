@@ -23,16 +23,49 @@ class Config:
             Config.__config_dir, Config.__config_file_name)
 
     # TODO: Put this somewhere else
+    # The default config is written so that if you ever replace any of
+    # the values in it, you have to replace them entirely. There is no
+    # dict merge. However, in many cases, it should not be an issue, and
+    # the feature can be added if necessary for some reason.
     __default_config = {
+        # Config for the lame encoder
+        # If you're crafty, you might notice this technically allows
+        # you to use other encoders instead of just lame, but that's
+        # something that's not yet considered "officially".
         'lame':  {
+            # The name of the binary. If it's not in the binary search
+            # path, the full path may be needed.
             'executable': 'lame',
-            'search_dirs': os.environ['PATH'].split(os.pathsep)
+            # What parameters to pass when encoding
+            'config': [
+                '-V2'
+            ]
         },
-        'cdparanoia': {
-            'executable': 'cdparanoia',
-            'search_dirs': os.environ['PATH'].split(os.pathsep)
-        },
-        '':
+        # Only path to be configured for cdparanoia
+        'cdparanoia': 'cdparanoia'
+        # How to construct the name of each album's directory. Parsed
+        # with string.Template, so you get simple substitution.
+        #
+        # You get a limited amount of variables to use here:
+        # $home - the executing user's home directory
+        # $album - album name from tags
+        # $albumartist - albumartist from tags. This can also in reality
+        #                be the artist tag but in that case the
+        #                difference doesn't exist.
+        # $xdg - XDG_MUSIC_DIR. If the environment variable is unset,
+        #        this is the same as $home/Music.
+        #
+        # Note that this path must be absolute. More variables might
+        # become available. Terminating slash is not necessary but is
+        # allowed.
+        'album_dir_template': '$xdg/$artist/$album/',
+        # Controls whether the albumartist tag is always added, even
+        # when the album is single-artist.
+        'always_tag_albumartist': False,
+        # The editor to be used. Defaults to the environment variable
+        # EDITOR, or vim if undefined. If you don't have vim either,
+        # well... You can always configure this option.
+        'editor': os.environ.get('EDITOR', 'vim')
     }
 
     def __init__(self):

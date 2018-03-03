@@ -116,7 +116,7 @@ class Config:
         
         self.__config = config
 
-    def get(key):
+    def get(self, key):
         """Fetch a configuration value.
         
         NOTE: Unlike dict.get, Config.get throws KeyError on access!

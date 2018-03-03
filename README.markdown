@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/fennekki/cdparacord.svg?branch=master)](https://travis-ci.org/fennekki/cdparacord)
+[![Coverage Status](https://coveralls.io/repos/github/fennekki/cdparacord/badge.svg?branch=master)](https://coveralls.io/github/fennekki/cdparacord?branch=master)
 # cdparacord
 
 `cdparacord` is a wrapper for cdparanoia and LAME that rips, encodes and tags

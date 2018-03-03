@@ -3,12 +3,15 @@
 import os
 import yaml
 from copy import deepcopy
-from xdg import XDG_CONFIG_HOME
 from .error import CdparacordError
+from .xdg import XDG_CONFIG_HOME
 
 class ConfigError(CdparacordError):
     """Raised on configuration error."""
     pass
+
+# Intentionally accessed like this because we probably need to crash if
+# $HOME isn't defined.
 
 class Config:
     """Represents the configuration of the program.
@@ -16,12 +19,6 @@ class Config:
     The functionality is partially in the class and partially in the
     instance, for no reason in particular.
     """
-    __config_dir_name = 'cdparacord'
-    __config_dir = os.path.join(XDG_CONFIG_HOME, Config.__config_dir_name)
-    __config_file_name = 'config.yaml'
-    __config_file = os.path.join(
-            Config.__config_dir, Config.__config_file_name)
-
     # TODO: Put this somewhere else
     # The default config is written so that if you ever replace any of
     # the values in it, you have to replace them entirely. There is no
@@ -42,7 +39,7 @@ class Config:
             ]
         },
         # Only path to be configured for cdparanoia
-        'cdparanoia': 'cdparanoia'
+        'cdparanoia': 'cdparanoia',
         # How to construct the name of each album's directory. Parsed
         # with string.Template, so you get simple substitution.
         #
@@ -52,8 +49,8 @@ class Config:
         # $albumartist - albumartist from tags. This can also in reality
         #                be the artist tag but in that case the
         #                difference doesn't exist.
-        # $xdg - XDG_MUSIC_DIR. If the environment variable is unset,
-        #        this is the same as $home/Music.
+        # $xdgmusic - XDG_MUSIC_DIR. If the environment variable is
+        #             unset, this is the same as $home/Music.
         #
         # Note that this path must be absolute. More variables might
         # become available. Terminating slash is not necessary but is
@@ -73,10 +70,15 @@ class Config:
 
         Raises ConfigError on failure.
         """
+
+        config_dir_name = 'cdparacord'
+        config_dir = os.path.join(XDG_CONFIG_HOME, config_dir_name)
+        config_file_name = 'config.yaml'
+        config_file = os.path.join(config_dir, config_file_name)
         try:
             # We try to make it with the mode u=rwx,go= (but if it exists
             # with any other mode, that's fine, that's the user's choice)
-            os.makedirs(Config.config_dir, 0o700, exist_ok=True)
+            os.makedirs(config_dir, 0o700, exist_ok=True)
         except OSError:
             raise ConfigError('Could not create configuration directory')
         except:
@@ -86,7 +88,7 @@ class Config:
         # Here we take a deepcopy so any instance cannot mutate the
         # class default configuration by accident. Note that it can
         # still be mutated, just not through Config.get()
-        config = Config.__default_config.deepcopy()
+        config = deepcopy(Config.__default_config)
 
         # Now we check if the file exists.
         # There are two obvious race conditions here:

@@ -8,7 +8,7 @@ with open(path.join(setup_dir, "README.markdown"), encoding='utf-8') as f:
     long_description = f.read()
 
 # Get __version__ and __url__
-with open('./cdparacord/appinfo.py') as f:
+with open(path.join(setup_dir, 'cdparacord/appinfo.py')) as f:
     exec(f.read())
 
 setup(
@@ -33,12 +33,13 @@ setup(
 
     keywords='cdparanoia cd ripping',
 
+    packages=find_packages(exclude=['tests']),
+
     install_requires=[
-        'musicbrainzngs',
-        'discid',
-        'mutagen',
-        'xdg',
-        'PyYAML'
+        'musicbrainzngs>=0.6',
+        'discid>=1.1',
+        'mutagen>=1.40',
+        'PyYAML>=3'
     ],
 
     package_data={},

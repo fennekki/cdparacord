@@ -106,12 +106,12 @@ class Config:
         if os.path.isfile(config_file):
             try:
                 with open(config_file, 'r') as f:
-                    loaded = yaml.safe_load_all(f)
+                    loaded = yaml.safe_load(f)
                     # Update configuration with the keys we loaded now
                     config.update(loaded)
             except OSError:
                 raise ConfigError('Could not open configuration file')
-        
+
         self.__config = config
 
     def get(self, key):

@@ -10,6 +10,8 @@ It is, however, probably not very useful if you don't share my goals in using it
 
 ## Requirements
 
+`cdparacord` requires at least python 3.5.
+
 `cdparacord` requires LAME (for encoding), libdiscid (for reading disc ids for
 MusicBrainz), and cdparanoia (for the actual ripping).
 

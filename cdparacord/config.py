@@ -92,7 +92,7 @@ class Config:
         # There are two obvious race conditions here:
         #
         # - File does not exist but is created
-        #   
+        #
         #   This one is okay, because we'll just use the default
         #   configuration, and you can abort the execution to load the
         #   new config anyway.
@@ -116,7 +116,7 @@ class Config:
 
     def get(self, key):
         """Fetch a configuration value.
-        
+
         NOTE: Unlike dict.get, Config.get throws KeyError on access!
         (Indeed, the KeyError originates in a direct access to the
         dictionary.) This is intentional and derives from the idea that

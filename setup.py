@@ -28,6 +28,7 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3.5'
         'Topic :: Multimedia :: Sound/Audio :: CD Audio :: CD Ripping'
     ],
 

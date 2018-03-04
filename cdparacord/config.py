@@ -81,8 +81,6 @@ class Config:
             os.makedirs(config_dir, 0o700, exist_ok=True)
         except OSError:
             raise ConfigError('Could not create configuration directory')
-        except:
-            raise ConfigError('Unknown issue creating configuration directory')
 
         # Load default config
         # Here we take a deepcopy so any instance cannot mutate the

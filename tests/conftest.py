@@ -1,12 +1,15 @@
+"""Global test fixtures and the like."""
 import pytest
 import tempfile
-
+import os
 
 @pytest.fixture
-def mock_config_dir(monkeypatch):
+def _monkeypatch_environment(monkeypatch):
+    """Monkeypatch environment variables for tests.
+
+    Some of these are necessary for the proper functioning of the code.
+    Especially either HOME or XDG_CONFIG_HOME has to exist.
+    """
     with tempfile.TemporaryDirectory() as d:
-        import os
-        # Monkeypatch XDG_CONFIG_HOME inside these tests
-        # This way we don't need to have a $HOME
-        monkeypatch.setitem(os.environ, 'XDG_CONFIG_HOME', d)
+        monkeypatch.setitem(os.environ, 'HOME', d)
         yield d

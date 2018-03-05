@@ -43,7 +43,8 @@ editor, the rip will begin.
 Cdparacord requires at least Python 3.5 for async.
 
 It requires LAME (3.99.5 is known to work) for encoding (though custom encoder
-support is Coming, see Bug https://github.com/fennekki/cdparacord/issues/19).
+support is Coming, see Bug
+[#19](https://github.com/fennekki/cdparacord/issues/19)).
 
 Additionally, libdiscid0 (0.6.2 known to work) is needed for extracting disc
 ids sent to MusicBrainz, and cdparanoia (10.2 known to work) for the actual
@@ -51,7 +52,8 @@ ripping.
 
 The `cdparanoia` and `lame` executables need to be in your executable search
 path (You will be able to manually configure their locations later, see Bugs
- https://github.com/fennekki/cdparacord/issues/19, https://github.com/fennekki/cdparacord/issues/21).
+[#19](https://github.com/fennekki/cdparacord/issues/19),
+[#21](https://github.com/fennekki/cdparacord/issues/21)).
 
 There are no version checks built into `cdparacord`; If a specific version of
 LAME, libdiscid0 or cdparanoia causes it to malfunction, please file a bug.
@@ -59,33 +61,45 @@ LAME, libdiscid0 or cdparanoia causes it to malfunction, please file a bug.
 ## Known issues
 
 Even if ripping individual tracks, the target directory existing will terminate
-the rip (Bugs https://github.com/fennekki/cdparacord/issues/9, https://github.com/fennekki/cdparacord/issues/10).
+the rip (Bugs [#9](https://github.com/fennekki/cdparacord/issues/9),
+[#10](https://github.com/fennekki/cdparacord/issues/10)).
 
-The text editor is hardcoded to be vim (Bug https://github.com/fennekki/cdparacord/issues/4).
+The text editor is hardcoded to be vim (Bug
+[#4](https://github.com/fennekki/cdparacord/issues/4)).
 
 Albumartist tags are only created if one or more tracks have a different
-`ARTIST` value than the `ALBUMARTIST` value (Bug https://github.com/fennekki/cdparacord/issues/6). This also applies to
+`ARTIST` value than the `ALBUMARTIST` value (Bug
+[#6](https://github.com/fennekki/cdparacord/issues/6)). This also applies to
 ripping less than the entire album, and whether or not said tracks are the
 tracks being ripped.
 
 You are not asked if you wish to proceed after closing the text editor (Bug
- https://github.com/fennekki/cdparacord/issues/1). Additionally, if you input incorrect information or otherwise terminate
-the rip, you will lose the data you input (Bug https://github.com/fennekki/cdparacord/issues/3). The rip cannot be restarted
-without removing the target directory (Bugs https://github.com/fennekki/cdparacord/issues/9, https://github.com/fennekki/cdparacord/issues/10) and cannot be restarted
-with existing data (Bug https://github.com/fennekki/cdparacord/issues/11). The rip cannot be resumed if terminated (Bug
- https://github.com/fennekki/cdparacord/issues/12).
+ [#1](https://github.com/fennekki/cdparacord/issues/1)). Additionally, if you
+input incorrect information or otherwise terminate the rip, you will lose the
+data you input (Bug [#3](https://github.com/fennekki/cdparacord/issues/3)). The
+rip cannot be restarted without removing the target directory (Bugs
+[#9](https://github.com/fennekki/cdparacord/issues/9),
+[#10](https://github.com/fennekki/cdparacord/issues/10)) and cannot be
+restarted with existing data (Bug
+[#11](https://github.com/fennekki/cdparacord/issues/11)). The rip cannot be
+resumed if terminated (Bug
+[#12](https://github.com/fennekki/cdparacord/issues/12)).
 
-The encoder is fixed to LAME with the quality parameter `-V2` (Bug https://github.com/fennekki/cdparacord/issues/19).
+The encoder is fixed to LAME with the quality parameter `-V2` (Bug
+[#19](https://github.com/fennekki/cdparacord/issues/19)).
 
 The directory and filename to put music in is fixed to
-`~/Music/$albumartist/$album/$trackno - $trackname.mp3` (Bug https://github.com/fennekki/cdparacord/issues/20).
+`~/Music/$albumartist/$album/$trackno - $trackname.mp3` (Bug
+[#20](https://github.com/fennekki/cdparacord/issues/20)).
 
 Some "special" characters are ripped from the filenames but their treatment is
 inconsistent, the filtering is too little for filesystems that can't handle
-Unicode, and it might be too much for you (Bug https://github.com/fennekki/cdparacord/issues/16).
+Unicode, and it might be too much for you (Bug
+[#16](https://github.com/fennekki/cdparacord/issues/16)).
 
 After cdparacord puts you in vim, there's no way to terminate cdparacord before
 it starts ripping other than inputting erroneous data (which you will
-subsequently lose) (Bug https://github.com/fennekki/cdparacord/issues/1).
+subsequently lose) (Bug [#1](https://github.com/fennekki/cdparacord/issues/1)).
 
-The existence of cdparanoia is checked relatively late (Bug https://github.com/fennekki/cdparacord/issues/2).
+The existence of cdparanoia is checked relatively late (Bug
+[#2](https://github.com/fennekki/cdparacord/issues/2)).

@@ -1,7 +1,7 @@
 """Tools for dealing with album data."""
 import musicbrainzngs
 import subprocess
-
+import os
 from tempfile import NamedTemporaryFile
 from .appinfo import __version__, __url__
 from .utils import find_executable
@@ -167,9 +167,9 @@ def get_final_albumdata():
     print("Fetching data from MusicBrainz...", end=" ")
     selected = musicbrainz_fetch(disc)
 
-    tempfile = NamedTemporaryFile(
+    datafile = NamedTemporaryFile(
             prefix="cdparacord", mode="w+", delete=False)
-    tempfile_name = tempfile.name
+    datafile_name = datafile.name
 
     d = [
         "ALBUMARTIST={}\n".format(selected["albumartist"]),
@@ -188,11 +188,11 @@ def get_final_albumdata():
              ' use the following URL:\n')
     d.append("# {}\n".format(disc.submission_url))
 
-    tempfile.writelines(d)
-    tempfile.close()
+    datafile.writelines(d)
+    datafile.close()
 
     # TODO maybe some people don't enjoy vim
-    subprocess.run(["/usr/bin/env", "vim", tempfile_name])
+    subprocess.run(["/usr/bin/env", "vim", datafile_name])
 
     # Track count doesn't change
     final = {
@@ -203,8 +203,8 @@ def get_final_albumdata():
     }
 
     # Parse the file to a map again
-    with open(tempfile_name, mode="r") as tempfile:
-        for line in tempfile.readlines():
+    with open(datafile_name, mode="r") as datafile:
+        for line in datafile.readlines():
             if line.rstrip() == "":
                 # Skip this line, it's empty
                 continue
@@ -230,6 +230,9 @@ def get_final_albumdata():
                 final["date"] = val
             else:
                 raise CdparacordError('Unknown key {}'.format(key))
+
+    # We no longer need the temporary file, remove it
+    os.remove(datafile_name)
 
     # Check that we haven't somehow given names for the wrong amount
     # of tracks

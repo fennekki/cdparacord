@@ -5,6 +5,7 @@ import subprocess
 from tempfile import NamedTemporaryFile
 from .appinfo import __version__, __url__
 from .utils import find_executable
+from .error import CdparacordError
 
 class ParanoiaError(Exception):
     pass
@@ -44,7 +45,7 @@ def parsed_from_disc(result):
         track_counter = 0
         medium = release["medium-list"][0]
         for track in medium["track-list"]:
-            # Count tracks, 
+            # Count tracks,
             track_counter += 1
             recording = track["recording"]
             albumdata["tracks"].append(recording["title"])
@@ -161,7 +162,7 @@ def get_final_albumdata():
     print("Fetching disc id...", end=" ")
     disc = discid.read()
     print("Id:", disc)
-    print("Submission url:", disc.submission_url)
+    print("Submission url:", )
 
     print("Fetching data from MusicBrainz...", end=" ")
     selected = musicbrainz_fetch(disc)
@@ -182,6 +183,10 @@ def get_final_albumdata():
         d.append("\n")
         d.append("TRACK={}\n".format(selected["tracks"][i]))
         d.append("ARTIST={}\n".format(selected["artists"][i]))
+    d.append("\n")
+    d.append('# If you wish to correct this information in MusicBrainz,'
+             ' use the following URL:\n')
+    d.append("# {}\n".format(disc.submission_url))
 
     tempfile.writelines(d)
     tempfile.close()
@@ -202,11 +207,17 @@ def get_final_albumdata():
             if line.rstrip() == "":
                 # Skip this line, it's empty
                 continue
+            if line.rstrip()[0] == "#":
+                # Comment; continue
+                continue
             key, val = line.rstrip().split("=", 1)
             if key == "ALBUMARTIST":
                 final["albumartist"] = val
             elif key == "TITLE":
                 final["title"] = val
+            elif key == "TRACK_COUNT":
+                # Currently does nothing
+                ...
             elif key == "TRACK":
                 final["tracks"].append(val)
             elif key == "ARTIST":
@@ -216,6 +227,8 @@ def get_final_albumdata():
                     final["artists"].append(final["albumartist"])
             elif key == "DATE":
                 final["date"] = val
+            else:
+                raise CdparacordError('Unknown key {}'.format(key))
 
     # Check that we haven't somehow given names for the wrong amount
     # of tracks

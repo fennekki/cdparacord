@@ -196,6 +196,7 @@ def get_final_albumdata():
 
     # Track count doesn't change
     final = {
+        "discid": str(disc),
         "track_count": selected["track_count"],
         "tracks": [],
         "artists": []

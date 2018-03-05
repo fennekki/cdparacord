@@ -69,19 +69,19 @@ async def rip_track(cdparanoia, trackinfo, temporary_name):
         await proc.wait()
 
 
-async def encode_track(lame, trackinfo, tmpdir, final_name):
+async def encode_track(lame, trackinfo, ripdir, final_name):
     proc = await asyncio.create_subprocess_exec(
         lame, "-V2",
-        "{tmpdir}/{tracknumber}.wav".format(
-            tmpdir=tmpdir, tracknumber=trackinfo["tracknumber"]),
+        "{ripdir}/{tracknumber}.wav".format(
+            ripdir=ripdir, tracknumber=trackinfo["tracknumber"]),
         final_name
     )
     await proc.wait()
 
 
-async def rip_encode_and_tag(cdparanoia, lame, trackinfo, albumdir, tmpdir):
-    temporary_name = "{tmpdir}/{tracknumber}.wav".format(
-            tmpdir=tmpdir,
+async def rip_encode_and_tag(cdparanoia, lame, trackinfo, albumdir, ripdir):
+    temporary_name = "{ripdir}/{tracknumber}.wav".format(
+            ripdir=ripdir,
             tracknumber=trackinfo["tracknumber"])
     final_name = "{albumdir}/{tracknumber:02d} - {title}.mp3".format(
             albumdir=albumdir,
@@ -90,7 +90,7 @@ async def rip_encode_and_tag(cdparanoia, lame, trackinfo, albumdir, tmpdir):
 
     await rip_track(cdparanoia, trackinfo, temporary_name)
 
-    await encode_track(lame, trackinfo, tmpdir, final_name)
+    await encode_track(lame, trackinfo, ripdir, final_name)
 
     print("Encoded {}, tagging".format(trackinfo["title"]))
     await tag_file(final_name, trackinfo)

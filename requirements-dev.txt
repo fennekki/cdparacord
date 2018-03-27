@@ -1,7 +1,0 @@
-pytest
-coveralls
-coverage
-musicbrainzngs
-discid
-mutagen
-PyYAML

@@ -34,29 +34,54 @@ class Config:
         },
         # Only path to be configured for cdparanoia
         'cdparanoia': 'cdparanoia',
-        # How to construct the name of each album's directory. Parsed
-        # with string.Template, so you get simple substitution.
-        #
+        # How to construct the name of each file.
         # You get a limited amount of variables to use here:
         # $home - the executing user's home directory
         # $album - album name from tags
+        # $artist - song artist from tags.
         # $albumartist - albumartist from tags. This can also in reality
         #                be the artist tag but in that case the
         #                difference doesn't exist.
         # $xdgmusic - XDG_MUSIC_DIR. If the environment variable is
         #             unset, this is the same as $home/Music.
+        # $tracknumber - number of the track on the album. Always two
+        #                digits, unless the album has over 99 tracks, in
+        #                which case the tracks beyond 99 have 3 digits.
+        # $track - name of the track on the album.
         #
         # Note that this path must be absolute. More variables might
-        # become available. Terminating slash is not necessary but is
-        # allowed.
-        'album_dir_template': '$xdg/$artist/$album/',
+        # become available. Any directories on the path will be created
+        # with default permissions. This allows you to make your music
+        # directory structure as flat or spread out as you want. All
+        # data from tags is subjected to the name safety filter before
+        # it is allowed here.
+        'target_template': '${xdgmusic}/${albumartist}/${album}/${tracknumber} - ${track}.mp3',
         # Controls whether the albumartist tag is always added, even
         # when the album is single-artist.
         'always_tag_albumartist': False,
         # The editor to be used. Defaults to the environment variable
         # EDITOR, or vim if undefined. If you don't have vim either,
         # well... You can always configure this option.
-        'editor': os.environ.get('EDITOR', 'vim')
+        'editor': os.environ.get('EDITOR', 'vim'),
+        # How to safety filter data to be put in filenames.
+        # Options:
+        # ascii - only allow 7-bit ASCII.
+        # windows1252 - only allow valid Windows-1252 characters.
+        # unicode_letternumber - only allow codepoints in the Letter and
+        #                        Number categories in Unicode (those
+        #                        with character properties Lu, Ll, Lt,
+        #                        Lm, Lo, Nd, Nl and No). Rationale:
+        #                        If a song's name contains several
+        #                        non-latin-alphabet character, they are
+        #                        most likely these, and these are the
+        #                        most likely to be typeable in reality.
+        # remove_restricted - remove restricted symbols from path.
+        #                     NOTE: This filter is *always* run as a
+        #                     part of the other filters.
+        #
+        # The filter cannot be completely disabled, because some
+        # characters are never allowed in paths.
+        'safetyfilter': 'unicode_letternumber'
     }
 
     def __init__(self):

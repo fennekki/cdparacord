@@ -25,16 +25,10 @@ class Config:
     # dict merge. However, in many cases, it should not be an issue, and
     # the feature can be added if necessary for some reason.
     __default_config = {
-        # Config for the lame encoder
-        # If you're crafty, you might notice this technically allows
-        # you to use other encoders instead of just lame, but that's
-        # something that's not yet considered "officially".
-        'lame':  {
-            # The name of the binary. If it's not in the binary search
-            # path, the full path may be needed.
+        # Config for the encoder
+        'encoder': {
             'executable': 'lame',
-            # What parameters to pass when encoding
-            'config': [
+            'parameters': [
                 '-V2'
             ]
         },

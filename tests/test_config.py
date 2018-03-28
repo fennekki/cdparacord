@@ -95,12 +95,12 @@ def test_create_config(mock_temp_home):
     c = config.Config()
 
 
-def test_get_lame(mock_temp_home):
-    """Try getting the value of 'lame' from a default configuration."""
+def test_get_encoder(mock_temp_home):
+    """Try getting the value of 'encoder' from a default configuration."""
     from cdparacord import config
     c = config.Config()
     # Would error if we couldn't find it
-    c.get('lame')
+    c.get('encoder')
 
 
 def test_fail_to_get_variable(mock_temp_home):

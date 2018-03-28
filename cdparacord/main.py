@@ -1,39 +1,30 @@
 import os
-import sys
-import asyncio
-
-from tempfile import TemporaryDirectory
-from .appinfo import __version__, __url__
-from .albumdata import get_final_albumdata, find_cdparanoia,\
-        ParanoiaError
-from .encode import rip_encode_and_tag
-from .utils import sanitise_filename, find_executable
-
-
-class LameError(Exception):
-    pass
-
-
-def find_lame():
-    return find_executable("lame", LameError)
+from .dependency import Dependency
+from .config import Config
 
 
 def main(args):
-    lame = find_lame()
+    # Read configuration
+    config = Config()
 
-    final = get_final_albumdata()
-    # TODO don't hardcode this I guess
-    # Where the mp3s will be put
-    albumdir = "{home}/Music/{artist}/{album}/".format(
-        home=os.environ["HOME"],
-        artist=sanitise_filename(final["albumartist"]),
-        album=sanitise_filename(final["title"]))
+    # Discover dependencies
+    deps = Dependency(config)
 
-    # Create rip directory for this album
+    # Read albumdata from user and MusicBrainz
+    albumdata = Albumdata(deps, config)
+
+    # Ensure ripping directory exists and set relatively restrictive
+    # permissions for it if it doesn't
     ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
         uid=os.getuid(),
         discid=final['discid'])
     os.makedirs(ripdir, 0o700, exist_ok=True)
+
+    #---- REFACTOR LINE
+    albumdir = "{home}/Music/{artist}/{album}/".format(
+        home=os.environ["HOME"],
+        artist=sanitise_filename(final["albumartist"]),
+        album=sanitise_filename(final["title"]))
 
     try:
         os.makedirs(albumdir)
@@ -94,22 +85,5 @@ def main(args):
     print("Rip finished, rip directory removed.")
 
 
-def entrypoint_wrapper():
-    try:
-        main(sys.argv)
-    except IOError:
-        print("Error reading disc. Please make sure there's a music CD in your"
-              " drive before running cdparacord.")
-    except OSError:
-        print("The libdiscid library was not found. Please make sure discid"
-              " is installed before running cdparacord.")
-    except ParanoiaError:
-        print("A cdparanoia executable was not found. Please make sure"
-              " cdparanoia is installed before running cdparacord.")
-    except LameError:
-        print("A lame executable was not found. Please make sure"
-              " lame is installed before running cdparacord.")
-
-
 if __name__ == "__main__":
-    entrypoint_wrapper()
+    main()

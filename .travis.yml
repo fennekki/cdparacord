@@ -7,7 +7,7 @@ before_install:
   - sudo apt-get install libdiscid0
 
 install:
-  - pip install tox-travis coverage pipenv
+  - pip install -r travis-requirements.txt
 
 script:
   - tox

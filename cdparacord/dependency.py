@@ -10,7 +10,7 @@ class DependencyError(CdparacordError):
 
 class Dependency:
     """A class for ensuring dependencies exist and are available.
-    
+
     This essentially performs partial configuration validation, because
     most of the external dependencies are configurable.
     """
@@ -46,11 +46,14 @@ class Dependency:
         self._editor = self._find_executable(self._config.get('editor'))
         self._cdparanoia = self._find_executable(
             self._config.get('cdparanoia'))
-        
+
         # Ensure discid is importable
         try:
             import discid
-        except OSError as e: 
+        # We don't need to coverage test this exception automatically;
+        # it would be ridiculous as it only depends on documented
+        # behaviour and only raises a further exception.
+        except OSError as e:  # pragma: no cover
             raise DependencyError("Could not find libdiscid") from e
 
     @property

@@ -9,7 +9,7 @@ before_install:
 install:
   - pip install pipenv
   - pipenv install --dev --ignore-pipfile
-  - pipenv run pip install travis-tox
+  - pipenv run pip install tox-travis
 
 script:
   - pipenv run tox

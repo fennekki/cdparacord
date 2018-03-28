@@ -7,15 +7,16 @@ before_install:
   - sudo apt-get install libdiscid0
 
 install:
-  - pip install -r travis-requirements.txt
+  - pip install pipenv
+  - pipenv install --dev --ignore-pipfile travis-tox
 
 script:
-  - tox
-  - coverage run -m py.test
-  - coverage report -m
+  - pipenv run tox
+  - pipenv run coverage run -m py.test
+  - pipenv run coverage report -m
 
 after_success:
-  - coveralls
+  - pipenv run coveralls
 
 notifications:
   email: false

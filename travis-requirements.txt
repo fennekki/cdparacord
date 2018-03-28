@@ -1,4 +1,0 @@
-tox-travis
-coverage
-pipenv
-PyYAML

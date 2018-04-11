@@ -4,6 +4,7 @@ import click
 from .albumdata import Albumdata
 from .config import Config
 from .dependency import Dependency
+from .error import CdparacordError
 
 
 @click.command()
@@ -25,9 +26,28 @@ def main(begin_track, end_track):
         uid=os.getuid(),
         discid=final['discid'])
     os.makedirs(ripdir, 0o700, exist_ok=True)
-    # NEXT UP: the CLI
-    # Maybe use Click? Again? I mean I could just use Click and it'd be
-    # easy
+
+    # Choose which tracks to rip based on the command line.  The logic
+    # is pretty straightforward: If we get neither argument, rip all. If
+    # we get one argument, rip only that track. Otherwise rip the
+    # inclusive range specified by the arguments.
+    if begin_track is None:
+        begin_track = 1
+        end_track = albumdata.track_count
+    elif end_track is None:
+        end_track = begin_track
+
+    if begin_track < 1 or begin_track > albumdata.track_count:
+        raise CdparacordError(
+            "Begin track {} out of range (must be between 1 and {})"
+            .format(begin_track, albumdata.track_count))
+
+    if end_track < begin_track or end_track > albumdata.track_count:
+        raise CdparacordError(
+            "End track out of range (Must be between begin track ({}) and {})"
+            .format(begin_track, albumdata.track_count)
+
+
     #---- REFACTOR LINE
     albumdir = "{home}/Music/{artist}/{album}/".format(
         home=os.environ["HOME"],

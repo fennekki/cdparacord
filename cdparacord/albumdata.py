@@ -7,6 +7,12 @@ from .appinfo import __version__, __url__
 from .utils import find_executable
 from .error import CdparacordError
 
+
+# TODO
+class Albumdata:
+    ...
+
+
 class ParanoiaError(Exception):
     pass
 

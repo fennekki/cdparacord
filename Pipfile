@@ -8,6 +8,8 @@ musicbrainzngs = '~=0.6'
 discid = '~=1.1'
 mutagen = '~=1.40'
 PyYAML = '~=3.12'
+click = '~=6.7'
+"e1839a8" = {editable = true, path = "."}
 
 [dev-packages]
 pytest = '>=3.4'

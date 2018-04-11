@@ -1,10 +1,15 @@
 import os
 import string
-from .dependency import Dependency
+import click
+from .albumdata import Albumdata
 from .config import Config
+from .dependency import Dependency
 
 
-def main(args):
+@click.command()
+@click.argument('begin_track', type=int, required=False)
+@click.argument('end_track', type=int, required=False)
+def main(begin_track, end_track):
     # Read configuration
     config = Config()
 
@@ -20,7 +25,9 @@ def main(args):
         uid=os.getuid(),
         discid=final['discid'])
     os.makedirs(ripdir, 0o700, exist_ok=True)
-
+    # NEXT UP: the CLI
+    # Maybe use Click? Again? I mean I could just use Click and it'd be
+    # easy
     #---- REFACTOR LINE
     albumdir = "{home}/Music/{artist}/{album}/".format(
         home=os.environ["HOME"],

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5c7c75ce951d67d01fa12dd92001e0fc19ee298ee4e1174efb5a1832937bec87"
+            "sha256": "2a0f8fb8e5581bdb32ca9909ae91d6ed65973eb5539746703058ce73436e625a"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -14,12 +14,24 @@
         ]
     },
     "default": {
+        "click": {
+            "hashes": [
+                "sha256:29f99fc6125fbc931b758dc053b3114e55c77a6e4c6c3a2674a2dc986016381d",
+                "sha256:f15516df478d5a56180fbf80e68f206010e6d160fc39fa508b65e035fd75130b"
+            ],
+            "index": "pypi",
+            "version": "==6.7"
+        },
         "discid": {
             "hashes": [
                 "sha256:78a3bf6c8377fdbe3d85e914a209ff97aa43e35605779639847b510ced31f7b9"
             ],
             "index": "pypi",
             "version": "==1.1.1"
+        },
+        "e1839a8": {
+            "editable": true,
+            "path": "."
         },
         "musicbrainzngs": {
             "hashes": [
@@ -186,11 +198,11 @@
         },
         "tox": {
             "hashes": [
-                "sha256:752f5ec561c6c08c5ecb167d3b20f4f4ffc158c0ab78855701a75f5cef05f4b8",
-                "sha256:8af30fd835a11f3ff8e95176ccba5a4e60779df4d96a9dfefa1a1704af263225"
+                "sha256:96efa09710a3daeeb845561ebbe1497641d9cef2ee0aea30db6969058b2bda2f",
+                "sha256:9ee7de958a43806402a38c0d2aa07fa8553f4d2c20a15b140e9f771c2afeade0"
             ],
             "index": "pypi",
-            "version": "==2.9.1"
+            "version": "==3.0.0"
         },
         "urllib3": {
             "hashes": [
@@ -204,7 +216,6 @@
                 "sha256:1d7e241b431e7afce47e77f8843a276f652699d1fa4f93b9d8ce0076fd7b0b54",
                 "sha256:e8e05d4714a1c51a2f5921e62f547fcb0f713ebbe959e0a7f585cc8bef71d11f"
             ],
-            "markers": "python_version != '3.2'",
             "version": "==15.2.0"
         },
         "vulture": {

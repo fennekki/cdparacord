@@ -40,7 +40,8 @@ setup(
         'musicbrainzngs>=0.6',
         'discid>=1.1',
         'mutagen>=1.40',
-        'PyYAML>=3'
+        'PyYAML>=3.12',
+        'click>=6.7'
     ],
 
     package_data={},
@@ -48,7 +49,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'cdparacord=cdparacord.main:entrypoint_wrapper'
+            'cdparacord=cdparacord.main:main'
         ]
     }
 )

@@ -10,7 +10,11 @@ from .error import CdparacordError
 
 # TODO
 class Albumdata:
-    ...
+    def __init__(self, deps, config, ripdir, reuse_albumdata,
+            use_musicbrainz):
+        self._deps = deps
+        self._config = config
+        self._ripdir = ripdir
 
 
 class ParanoiaError(Exception):

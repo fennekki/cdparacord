@@ -12,21 +12,27 @@ from .rip import Rip
 @click.command()
 @click.argument('begin_track', type=int, required=False)
 @click.argument('end_track', type=int, required=False)
-@click.option('--keep-ripdir/--no-keep-ripdir', '-K', default=False,
-        help="""Keep temporary ripping directory after rip finishes.
-        (Default: --no-keep-ripdir)""")
-def main(begin_track, end_track, keep_ripdir):
+@click.option('--keep-ripdir/--no-keep-ripdir', '-R', default=False,
+    help="""Keep temporary ripping directory after rip finishes.
+    (Default: --no-keep-ripdir)""")
+@click.option('--reuse-albumdata/--no-reuse-albumdata', ' /-A',
+    default=False, help="""Use albumdata from a previous rip if present
+    (Default: --reuse-albumdata)""")
+@click.option('--musicbrainz/--no-musicbrainz', ' /-M',
+    'use_musicbrainz', default=False, help="""Fetch albumdata from
+    MuzicBrainz if available (Default: --musicbrainz)""")
+def main(begin_track, end_track, keep_ripdir, reuse_albumdata, use_musicbrainz):
     """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 
     If only BEGIN_TRACK is specified, only the specified track will be
     ripped. If both BEGIN_TRACK and END_TRACK are specified, the range
     starting from BEGIN_TRACK and ending at END_TRACK will be ripped. If
-    neither is specified, the whole CD will be ripped.    
+    neither is specified, the whole CD will be ripped.
 
     Cdparacord creates a temporary directory under /tmp, runs cdparanoia
     to rip discs into it and copies the resulting encoded files to the
     target directory configured in the configuration file.
-    
+
     See documentation for more.
     """
     # Read configuration
@@ -43,7 +49,8 @@ def main(begin_track, end_track, keep_ripdir):
     os.makedirs(ripdir, 0o700, exist_ok=True)
 
     # Read albumdata from user and MusicBrainz
-    albumdata = Albumdata(deps, config, ripdir)
+    albumdata = Albumdata(deps, config, ripdir, reuse_albumdata,
+        use_musicbrainz)
 
     # Choose which tracks to rip based on the command line.  The logic
     # is pretty straightforward: If we get neither argument, rip all. If

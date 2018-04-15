@@ -86,5 +86,5 @@ def main(begin_track, end_track, **options):
         shutil.rmtree(albumdata.ripdir)
     print('\n\nCdparacord finished.')
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     main()

@@ -2,13 +2,40 @@
 import musicbrainzngs
 import subprocess
 import os
+import shutil
+import textwrap
 from tempfile import NamedTemporaryFile
 from .appinfo import __version__, __url__
 from .utils import find_executable
 from .error import CdparacordError
 
 
-# TODO
+class AlbumdataError(CdparacordError):
+    pass
+
+
+class Track:
+    def __init__(self, trackdata):
+        self._title = trackdata['title']
+        self._artist = trackdata['artist']
+        self._filename = trackdata['filename']
+
+    @property
+    def title(self):
+        """Print title of this track."""
+        return self._title
+
+    @property
+    def artist(self):
+        """Print artist of this track."""
+        return self._artist
+
+    @property
+    def filename(self):
+        """Print target filename for this track."""
+        return self._filename
+
+
 class Albumdata:
     def __init__(self, albumdata):
         """Initialises an Albumdata object from a dict.
@@ -17,8 +44,40 @@ class Albumdata:
         acquired from MusicBrainz, the user, or any albumdata already on
         disk.
         """
-        self._deps = deps
-        self._config = config
+        self._ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
+                uid=os.getuid(), discid=albumdata['discid'])
+        self._tracks = []
+        for trackdata in albumdata['tracks']:
+            self._tracks.append(Track(trackdata))
+
+    @staticmethod
+    def _print_albumdata(albumdata, width):
+        """Print albumdata to fit a terminal.
+
+        This is powerfully hacky.
+        """
+        field_width_2 = int(width / 2 - 1)
+        field_width_4 = int(width / 4 - 1)
+
+        # This is extremely ridiculous but should not be unsafe
+        double_field_format = '{{:<{}}}  {{:<{}}}'.format(
+            field_width_2, field_width_2)
+        triple_field_format = '{{:<{}}} {{:<{}}}  {{:<{}}}'.format(
+            field_width_4, field_width_4, field_width_2)
+
+        print('=' * width)
+        print(double_field_format.format(
+            textwrap.shorten(albumdata['albumartist'], field_width_2),
+            textwrap.shorten(albumdata['title'], field_width_2)))
+        print('=' * width)
+        print(triple_field_format.format('Track', 'Track Artist', 'Suggested filename'))
+        print('-' * width)
+        for track in albumdata['tracks']:
+            print(triple_field_format.format(
+                textwrap.shorten(track['title'], field_width_4),
+                textwrap.shorten(track['artist'], field_width_4),
+                textwrap.shorten(track['filename'], field_width_2)))
+        print('-' * width)
 
     @classmethod
     def from_user_input(cls, deps, config):
@@ -27,18 +86,28 @@ class Albumdata:
         Returns None if the user chose to abort the selection.
         """
 
-        # ---- REFACTOR LINE
-        # Move this to after albumdata is fetcht from mb
-        self._ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
-                uid=os.getuid(), discid=final['discid'])
+        width, height = shutil.get_terminal_size()
 
-        use_musicbrainz = self._config['use_musicbrainz']
-        reuse_albumdata = self._config['reuse_albumdata']
+        min_width = 60
+        max_width = max(min_width, width)
+
+        use_musicbrainz = config['use_musicbrainz']
+        reuse_albumdata = config['reuse_albumdata']
 
     @property
     def ripdir(self):
         """Return the directory this album's rip should be in."""
         return self._ripdir
+
+    @property
+    def track_count(self):
+        """Return the directory this album's rip should be in."""
+        return len(self._tracks)
+
+    @property
+    def tracks(self):
+        """Return list of tracks"""
+        return self._tracks
 
 
 class ParanoiaError(Exception):

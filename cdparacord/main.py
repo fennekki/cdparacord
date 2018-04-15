@@ -81,10 +81,10 @@ def main(begin_track, end_track, **options):
     rip.rip_pipeline()
 
     # We have a flag to keep ripdir
-    if not keep_ripdir:
-        print("Removing ripdir")
+    if not options['keep_ripdir']:
+        print('Removing ripdir')
         shutil.rmtree(albumdata.ripdir)
-    print("\n\nCdparacord finished.")
+    print('\n\nCdparacord finished.')
 
 if __name__ == "__main__":
     main()

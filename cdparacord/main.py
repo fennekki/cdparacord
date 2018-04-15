@@ -1,5 +1,4 @@
 import os
-import string
 import click
 import shutil
 from .albumdata import Albumdata
@@ -23,7 +22,6 @@ from .rip import Rip
     help="""Continue rip from existing ripdir if ripdir is present (By default
     the rip is restarted)""")
 def main(begin_track, end_track, **options):
-    print(options)
     """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 
     If only BEGIN_TRACK is specified, only the specified track will be
@@ -50,7 +48,13 @@ def main(begin_track, end_track, **options):
     # permissions for it if it doesn't
 
     # Read albumdata from user and MusicBrainz
-    albumdata = Albumdata(deps, config)
+    albumdata = Albumdata.from_user_input(deps, config)
+    if albumdata is None:
+        print('User aborted albumdata selection.')
+        return
+
+    # Create the ripdir if we got albumdata
+    os.makedirs(albumdata.ripdir, 0o700, exist_ok=True)
 
     # Choose which tracks to rip based on the command line.  The logic
     # is pretty straightforward: If we get neither argument, rip all. If

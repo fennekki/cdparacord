@@ -17,9 +17,13 @@ def mock_dependencies(monkeypatch):
     monkeypatch.setattr('cdparacord.main.Dependency', Dependency)
 
     class Albumdata:
-        def __init__(self, deps, config):
+        def __init__(self):
             self.track_count = 1
             self.ripdir = '/\0'
+
+        @classmethod
+        def from_user_input(cls, deps, config):
+            return cls()
     monkeypatch.setattr('cdparacord.main.Albumdata', Albumdata)
 
     class Rip:
@@ -31,17 +35,20 @@ def mock_dependencies(monkeypatch):
     monkeypatch.setattr('cdparacord.main.Rip', Rip)
 
     monkeypatch.setattr('shutil.rmtree', lambda x: True)
+    monkeypatch.setattr('os.makedirs', lambda x, y, exist_ok: True)
 
 
 def test_main(mock_dependencies):
+    """Test several valid inputs to main."""
     from cdparacord import main
-    # Test several valid inputs
+
     click.testing.CliRunner().invoke(main.main, catch_exceptions=False)
     click.testing.CliRunner().invoke(main.main, args=['1', '1'], catch_exceptions=False)
     click.testing.CliRunner().invoke(main.main, args=['--keep-ripdir'], catch_exceptions=False)
 
 
 def test_main_begin_track_out_of_range(mock_dependencies):
+    """Test that several invalid inputs to main raise."""
     from cdparacord import main, error
 
     # Test several invalid inputs
@@ -53,3 +60,14 @@ def test_main_begin_track_out_of_range(mock_dependencies):
 
     with pytest.raises(cdparacord.error.CdparacordError):
         click.testing.CliRunner().invoke(main.main, args=['1', '0'], catch_exceptions=False)
+
+
+def test_main_albumdata_none(mock_dependencies, monkeypatch):
+    """Test that main completes succesfully when albumdata is None."""
+    from cdparacord import main
+
+    monkeypatch.setattr('cdparacord.main.Albumdata.from_user_input', lambda y, z: None)
+
+    res = click.testing.CliRunner().invoke(main.main, catch_exceptions=False)
+
+    assert res.output == 'User aborted albumdata selection.\n'

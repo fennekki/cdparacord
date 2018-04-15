@@ -10,19 +10,35 @@ from .error import CdparacordError
 
 # TODO
 class Albumdata:
-    def __init__(self, deps, config):
+    def __init__(self, albumdata):
+        """Initialises an Albumdata object from a dict.
+
+        The dict albumdata contains the "plain" album data usually
+        acquired from MusicBrainz, the user, or any albumdata already on
+        disk.
+        """
         self._deps = deps
         self._config = config
+
+    @classmethod
+    def from_user_input(cls, deps, config):
+        """Initialises an Albumdata object from interactive user input.
+
+        Returns None if the user chose to abort the selection.
+        """
 
         # ---- REFACTOR LINE
         # Move this to after albumdata is fetcht from mb
         self._ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
                 uid=os.getuid(), discid=final['discid'])
-        os.makedirs(self._ripdir, 0o700, exist_ok=True)
 
         use_musicbrainz = self._config['use_musicbrainz']
         reuse_albumdata = self._config['reuse_albumdata']
 
+    @property
+    def ripdir(self):
+        """Return the directory this album's rip should be in."""
+        return self._ripdir
 
 
 class ParanoiaError(Exception):

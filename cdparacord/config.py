@@ -12,8 +12,6 @@ class ConfigError(CdparacordError):
     """Raised on configuration error."""
     pass
 
-# Intentionally accessed like this because we probably need to crash if
-# $HOME isn't defined.
 
 class Config:
     """Represents the configuration of the program.

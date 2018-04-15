@@ -1,7 +1,9 @@
 """System for configuring cdparacord."""
 
 import os
+import sys
 import yaml
+import textwrap
 from copy import deepcopy
 from .error import CdparacordError
 from .xdg import XDG_CONFIG_HOME
@@ -81,7 +83,14 @@ class Config:
         #
         # The filter cannot be completely disabled, because some
         # characters are never allowed in paths.
-        'safetyfilter': 'unicode_letternumber'
+        'safetyfilter': 'unicode_letternumber',
+        # Whether to lookup stuff from MusicBrainz by default
+        'use_musicbrainz': True,
+        # If album data exists, whether to use it by default
+        'reuse_albumdata': True,
+        # If True, temporary rip directory is deleted after rip
+        # succesfully finished (but not otherwise)
+        'keep_ripdir': False
     }
 
     def __init__(self):
@@ -105,7 +114,7 @@ class Config:
         # Here we take a deepcopy so any instance cannot mutate the
         # class default configuration by accident. Note that it can
         # still be mutated, just not through Config.get()
-        config = deepcopy(Config.__default_config)
+        self._config = deepcopy(Config.__default_config)
 
         # Now we check if the file exists.
         # There are two obvious race conditions here:
@@ -121,17 +130,25 @@ class Config:
         #   This one is more problematic; We *could* just go with the
         #   default config if the file is suddenly gone, as well, but I
         #   think it's safer if we instead consider this to be Weird and
-        #   error out of here.
+        #   error out of here. Because of the exception, the object
+        #   should not be constructed even if the object is caught.
         if os.path.isfile(config_file):
             try:
                 with open(config_file, 'r') as f:
                     loaded = yaml.safe_load(f)
                     # Update configuration with the keys we loaded now
-                    config.update(loaded)
+                    # Loudly announce any odd keys (but those are not an
+                    # error so it's okay)
+                    if (loaded is not None) and (type(loaded) is not dict):
+                        raise ConfigError(textwrap.dedent("""\
+                                Configuration file's
+                                contents were of type {} (empty or one
+                                YAML document containing a dict
+                                expected)"""))
+                    self.update(loaded, quiet_ignore=False)
             except OSError:
                 raise ConfigError('Could not open configuration file')
 
-        self.__config = config
 
     def get(self, key):
         """Fetch a configuration value.
@@ -157,4 +174,25 @@ class Config:
         choice, but it is in fact exactly equivalent to initialising the
         default config for each object separately in __init__.
         """
-        return self.__config[key]
+        return self._config[key]
+
+    def update(self, d, *, quiet_ignore=True):
+        """Update configuration from provided dict.
+
+        If quiet_ignore is False, messages will be printed to stderr
+        when unknown keys are encountered.
+
+        Only keys that already exist in the configuration are updated:
+        No keys that don't exist in the dict already are changed. This
+        is strictly because update is designed to be used to update the
+        values from command-line options given in the main function,
+        wherein such keys might be given; And to update the
+        configuration from the custom configuration file, wherein they
+        are probably either a typo or a misremembered option.
+        """
+        for key in d:
+            if key in self._config:
+                self._config[key] = d[key]
+            elif not quiet_ignore and key not in self._config:
+                print('Warning: Unknown configuration key {}'.format(key),
+                    file=sys.stderr)

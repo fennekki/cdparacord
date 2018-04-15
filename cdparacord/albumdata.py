@@ -10,11 +10,19 @@ from .error import CdparacordError
 
 # TODO
 class Albumdata:
-    def __init__(self, deps, config, ripdir, reuse_albumdata,
-            use_musicbrainz):
+    def __init__(self, deps, config):
         self._deps = deps
         self._config = config
-        self._ripdir = ripdir
+
+        # ---- REFACTOR LINE
+        # Move this to after albumdata is fetcht from mb
+        self._ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
+                uid=os.getuid(), discid=final['discid'])
+        os.makedirs(self._ripdir, 0o700, exist_ok=True)
+
+        use_musicbrainz = self._config['use_musicbrainz']
+        reuse_albumdata = self._config['reuse_albumdata']
+
 
 
 class ParanoiaError(Exception):

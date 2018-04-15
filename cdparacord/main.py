@@ -12,16 +12,18 @@ from .rip import Rip
 @click.command()
 @click.argument('begin_track', type=int, required=False)
 @click.argument('end_track', type=int, required=False)
-@click.option('--keep-ripdir/--no-keep-ripdir', '-R', default=False,
-    help="""Keep temporary ripping directory after rip finishes.
-    (Default: --no-keep-ripdir)""")
-@click.option('--reuse-albumdata/--no-reuse-albumdata', ' /-A',
-    default=False, help="""Use albumdata from a previous rip if present
-    (Default: --reuse-albumdata)""")
-@click.option('--musicbrainz/--no-musicbrainz', ' /-M',
-    'use_musicbrainz', default=False, help="""Fetch albumdata from
-    MuzicBrainz if available (Default: --musicbrainz)""")
-def main(begin_track, end_track, keep_ripdir, reuse_albumdata, use_musicbrainz):
+@click.option('--keep-ripdir/--no-keep-ripdir', '-r/-R', default=None,
+    help="""Keep temporary ripping directory after rip finishes.""")
+@click.option('--reuse-albumdata/--no-reuse-albumdata', '-a/-A',
+    default=None, help="""Use albumdata from a previous rip if present""")
+@click.option('--use-musicbrainz/--no-use-musicbrainz', '-m/-M',
+    'use_musicbrainz', default=None, help="""Fetch albumdata from MuzicBrainz
+    if available""")
+@click.option('--continue', '-c', 'continue_rip', is_flag=True, default=False,
+    help="""Continue rip from existing ripdir if ripdir is present (By default
+    the rip is restarted)""")
+def main(begin_track, end_track, **options):
+    print(options)
     """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 
     If only BEGIN_TRACK is specified, only the specified track will be
@@ -37,20 +39,18 @@ def main(begin_track, end_track, keep_ripdir, reuse_albumdata, use_musicbrainz):
     """
     # Read configuration
     config = Config()
+    # Update does not add new configuration options (because the way new
+    # config is added is by adding new elements to the default config)
+    config.update(options)
 
     # Discover dependencies
     deps = Dependency(config)
 
     # Ensure ripping directory exists and set relatively restrictive
     # permissions for it if it doesn't
-    ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
-        uid=os.getuid(),
-        discid=final['discid'])
-    os.makedirs(ripdir, 0o700, exist_ok=True)
 
     # Read albumdata from user and MusicBrainz
-    albumdata = Albumdata(deps, config, ripdir, reuse_albumdata,
-        use_musicbrainz)
+    albumdata = Albumdata(deps, config)
 
     # Choose which tracks to rip based on the command line.  The logic
     # is pretty straightforward: If we get neither argument, rip all. If
@@ -76,13 +76,14 @@ def main(begin_track, end_track, keep_ripdir, reuse_albumdata, use_musicbrainz):
 
     # Rip is the ripping and encoding process object
     # It deals with the rip queue, encoding, tagging
-    rip = Rip(albumdata, deps, config, ripdir, begin_track, end_track)
+    rip = Rip(albumdata, deps, config, begin_track, end_track,
+            options['continue_rip'])
     rip.rip_pipeline()
 
     # We have a flag to keep ripdir
     if not keep_ripdir:
         print("Removing ripdir")
-        shutil.rmtree(ripdir)
+        shutil.rmtree(albumdata.ripdir)
     print("\n\nCdparacord finished.")
 
 if __name__ == "__main__":

@@ -11,6 +11,10 @@ import importlib
 import yaml
 
 
+# TODO: Instead of this mess, try to mock the entire xdg module. Its
+# problem is currently that all the code runs module-scope. Changing the
+# xdg module could work too.
+
 ### Fixtures ###
 
 
@@ -143,7 +147,7 @@ def test_read_config_file(mock_config_file):
 def test_read_invalid_config(mock_config_file):
     """Try to fail to read a valid configuration from file."""
     from cdparacord import config
-    
+
     config_file = mock_config_file
 
     with open(config_file, 'w') as f:

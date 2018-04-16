@@ -7,6 +7,7 @@ from cdparacord import albumdata
 
 testdata = {
         'discid': 'test',
+        'ripdir': '/tmp/cdparacord/1000-test',
         'title': 'Test album',
         'albumartist': 'Test Artist',
         'date': 2018,
@@ -24,14 +25,21 @@ testdata_wrong['track_count'] = 2
 
 
 def test_initialise_track():
+    """Test that track is correctly initialised."""
     t = albumdata.Track(testdata['tracks'][0])
     assert t.title == 'Test track'
     assert t.artist == 'Test Artist'
+    assert t.filename == '/home/user/Music/Test Artist/Test album/01 - Test track.mp3'
 
 
-def test_initialise_albumdata(monkeypatch):
+def test_albumdata_tracks():
+    """Test that tracks are correctly added to albumdata."""
+    a = albumdata.Albumdata(testdata)
+    assert a.tracks[0].title == 'Test track'
+
+
+def test_initialise_albumdata():
     """Try to initialise albumdata correctly."""
-    monkeypatch.setattr('os.getuid', lambda: 1000)
     a = albumdata.Albumdata(testdata)
     assert a.ripdir == '/tmp/cdparacord/1000-test'
     assert a.track_count == 1

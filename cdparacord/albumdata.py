@@ -2,6 +2,7 @@
 import musicbrainzngs
 import subprocess
 import os
+import os.path
 import shutil
 import textwrap
 from tempfile import NamedTemporaryFile
@@ -44,8 +45,7 @@ class Albumdata:
         acquired from MusicBrainz, the user, or any albumdata already on
         disk.
         """
-        self._ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
-                uid=os.getuid(), discid=albumdata['discid'])
+        self._ripdir = albumdata['ripdir']
         self._tracks = []
         for trackdata in albumdata['tracks']:
             self._tracks.append(Track(trackdata))
@@ -86,6 +86,9 @@ class Albumdata:
         Returns None if the user chose to abort the selection.
         """
 
+        # Since we're given deps, discid exists
+        import discid
+
         width, height = shutil.get_terminal_size()
 
         min_width = 60
@@ -93,6 +96,47 @@ class Albumdata:
 
         use_musicbrainz = config['use_musicbrainz']
         reuse_albumdata = config['reuse_albumdata']
+
+        try:
+            disc = discid.read()
+        except discid.DiscError:
+            raise AlbumdataError('Could not read CD')
+
+        ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
+            uid=os.getuid(), discid=disc)
+        albumdata_file = os.path.join(ripdir, 'albumdata.yaml')
+
+        # Data to be merged to the albumdata we select
+        common_albumdata = {
+            'discid': str(disc),
+            'ripdir': ripdir
+        }
+        results = []
+
+        # If we are reusing albumdata and it exists, recommend that as a
+        # first option
+        if reuse_albumdata:
+            if os.path.isfile(albumdata_file):
+                with open(albumdata_file, 'r') as f:
+                    loaded_albumdata = yaml.safe_load(f)
+
+                    if type(loaded_albumdata) is not dict:
+                        raise AlbumdataError(
+                            'Albumdata file {} is corrupted'.format(
+                                albumdata_file))
+                    results.append(loaded_albumdata)
+
+        # Append results from MusicBrainz if needed
+        if use_musicbrainz:
+            musicbrainzngs.set_useragent('cdparacord', __version__, __url__)
+            try:
+                musicbrainz_result = musicbrainzngs.get_releases_by_discid(
+                    disc.id, includes=['recordings', 'artist-credits'])
+                results.append(
+                    cls._albumdata_from_musicbrainz(musicbrainz_result))
+            except musicbrainzngs.MusicBrainzError:
+                pass
+
 
     @property
     def ripdir(self):
@@ -109,6 +153,8 @@ class Albumdata:
         """Return list of tracks"""
         return self._tracks
 
+
+# ------------------------------
 
 class ParanoiaError(Exception):
     pass
@@ -185,14 +231,9 @@ def parsed_from_cdstub(result):
 
 
 def musicbrainz_fetch(disc):
-    cdparanoia = find_cdparanoia()
 
     try:
-        musicbrainzngs.set_useragent("cdparacord", __version__, __url__)
-        result = musicbrainzngs.get_releases_by_discid(
-                disc.id, includes=["recordings", "artist-credits"])
-
-        print("found")
+        # REFACTOR LINE ---
 
         print("Pick release: ")
         if "disc" in result:
@@ -259,17 +300,8 @@ def musicbrainz_fetch(disc):
 
 
 def get_final_albumdata():
-    # Import discid here because it might raise
-    import discid
 
-    print("Fetching disc id...", end=" ")
-    disc = discid.read()
-    print("Id:", disc)
-    print("Submission url:", )
-
-    print("Fetching data from MusicBrainz...", end=" ")
-    selected = musicbrainz_fetch(disc)
-
+    # ---- refactor line
     datafile = NamedTemporaryFile(
             prefix="cdparacord", mode="w+", delete=False)
     datafile_name = datafile.name

@@ -84,6 +84,7 @@ class Albumdata:
         """Convert MusicBrainz cdstub to albumdata."""
         albumdata = {}
 
+        albumdata['source'] = 'MusicBrainz'
         albumdata['title'] = cdstub['title']
         if 'date' in cdstub:
             albumdata['date'] = cdstub['date']
@@ -108,6 +109,8 @@ class Albumdata:
         releases = disc['release-list']
         for release in releases:
             albumdata = {}
+
+            albumdata['source'] = 'MusicBrainz'
             albumdata['title'] = release['title']
             albumdata['date'] = release['date']
             albumdata['tracks'] = []
@@ -127,13 +130,32 @@ class Albumdata:
         return result
 
     @classmethod
-    def _albumdata_from_musicbrainz(cls, result):
+    def _albumdata_from_musicbrainz(cls, disc):
         """Convert MusicBrainz result to list of usable albumdata."""
-        
-        if 'cdstub' in result:
-            return [cls._albumdata_from_cdstub(result['cdstub'])]
-        elif 'disc' in result:
-            return cls._albumdata_from_disc(result['disc'])
+        musicbrainzngs.set_useragent('cdparacord', __version__, __url__)
+        try:
+            result = musicbrainzngs.get_releases_by_discid(
+                disc, includes=['recordings', 'artist-credits'])
+
+            if 'cdstub' in result:
+                return [cls._albumdata_from_cdstub(result['cdstub'])]
+            elif 'disc' in result:
+                return cls._albumdata_from_disc(result['disc'])
+        except musicbrainzngs.MusicBrainzError:
+            return []
+
+    @classmethod
+    def _albumdata_from_previous_rip(cls, albumdata_file):
+        if os.path.isfile(albumdata_file):
+            with open(albumdata_file, 'r') as f:
+                loaded_albumdata = yaml.safe_load(f)
+
+                if type(loaded_albumdata) is not dict:
+                    raise AlbumdataError(
+                        'Albumdata file {} is corrupted'.format(
+                            albumdata_file))
+                loaded_albumdata['source'] = 'Previous rip'
+                return loaded_albumdata
 
     @classmethod
     def from_user_input(cls, deps, config):
@@ -150,8 +172,8 @@ class Albumdata:
         min_width = 60
         max_width = max(min_width, width)
 
-        use_musicbrainz = config['use_musicbrainz']
-        reuse_albumdata = config['reuse_albumdata']
+        use_musicbrainz = config.get('use_musicbrainz')
+        reuse_albumdata = config.get('reuse_albumdata')
 
         try:
             disc = discid.read()
@@ -172,29 +194,28 @@ class Albumdata:
         # If we are reusing albumdata and it exists, recommend that as a
         # first option
         if reuse_albumdata:
-            if os.path.isfile(albumdata_file):
-                with open(albumdata_file, 'r') as f:
-                    loaded_albumdata = yaml.safe_load(f)
-
-                    if type(loaded_albumdata) is not dict:
-                        raise AlbumdataError(
-                            'Albumdata file {} is corrupted'.format(
-                                albumdata_file))
-                    results.append(loaded_albumdata)
+            loaded_albumdata = _albumdata_from_previous_rip(albumdata_file)
+            results.append(loaded_albumdata)
 
         # Append results from MusicBrainz if needed
         if use_musicbrainz:
-            musicbrainzngs.set_useragent('cdparacord', __version__, __url__)
-            try:
-                musicbrainz_result = musicbrainzngs.get_releases_by_discid(
-                    disc.id, includes=['recordings', 'artist-credits'])
-                # We get a list of results so we call extend
-                results.extend(
-                    cls._albumdata_from_musicbrainz(musicbrainz_result))
-            except musicbrainzngs.MusicBrainzError:
-                pass
+            # We get a list of results so we call extend
+            results.extend(cls._albumdata_from_musicbrainz(disc))
 
-        # TODO: ADD THE EMPTY CHOICE
+        # TODO: calculate the track count somehow
+        track_count = 10
+        results.append({
+            'source': 'Empty data',
+            'title': '',
+            'date': '',
+            'albumartist': '',
+            'artists': '',
+            'tracks': [{
+                'title': '',
+                'artist': ''
+            }] * track_count
+        })
+
         
         for result in results:
             # Merge in the common data
@@ -208,6 +229,11 @@ class Albumdata:
                 track['filename'] = 'TODO'
 
         # TODO: PERFORM THE SELECTION
+        print('Sources available:')
+        for i in range(1, len(results) + 1):
+            print('{}) {}'.format(i, results[i - 1]['source']))
+        
+        # TODO  while input()
 
 
     @property

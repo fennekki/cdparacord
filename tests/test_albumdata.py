@@ -155,14 +155,17 @@ testdata_disc_result = {
 def test_cdstub_result(monkeypatch):
     """Test that cdstub result is processed correctly."""
     # Exercise both paths
-    a = albumdata.Albumdata._albumdata_from_musicbrainz(testdata_cdstub_result)[0]
+    monkeypatch.setattr('musicbrainzngs.get_releases_by_discid',
+        lambda x, includes: testdata_cdstub_result)
+
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')[0]
     assert a['title'] == 'Test album'
     assert a['albumartist'] == 'Test Artist'
     assert a['tracks'][0]['title'] == 'Test track'
     assert a['tracks'][0]['artist'] == 'Test Artist'
 
     monkeypatch.setitem(testdata_cdstub_result['cdstub'], 'date', '2018-02')
-    a = albumdata.Albumdata._albumdata_from_musicbrainz(testdata_cdstub_result)[0]
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')[0]
 
     assert a['title'] == 'Test album'
     assert a['albumartist'] == 'Test Artist'
@@ -171,9 +174,12 @@ def test_cdstub_result(monkeypatch):
     assert a['tracks'][0]['artist'] == 'Test Artist'
 
 
-def test_disc_result():
+def test_disc_result(monkeypatch):
     """Test that disc result is processed correctly."""
-    a = albumdata.Albumdata._albumdata_from_musicbrainz(testdata_disc_result)[0]
+    monkeypatch.setattr('musicbrainzngs.get_releases_by_discid',
+        lambda x, includes: testdata_disc_result)
+
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')[0]
 
     assert a['title'] == 'Test album'
     assert a['albumartist'] == 'Test Artist'

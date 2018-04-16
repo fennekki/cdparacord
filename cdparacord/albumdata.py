@@ -79,6 +79,62 @@ class Albumdata:
                 textwrap.shorten(track['filename'], field_width_2)))
         print('-' * width)
 
+    @staticmethod
+    def _albumdata_from_cdstub(cdstub):
+        """Convert MusicBrainz cdstub to albumdata."""
+        albumdata = {}
+
+        albumdata['title'] = cdstub['title']
+        if 'date' in cdstub:
+            albumdata['date'] = cdstub['date']
+        else:
+            albumdata['date'] = ''
+        albumdata['albumartist'] = cdstub['artist']
+        albumdata['tracks'] = []
+
+        for track in cdstub['track-list']:
+            albumdata['tracks'].append({
+                'title': track['title'],
+                'artist': cdstub['artist']
+            })
+
+        return albumdata
+
+    @staticmethod
+    def _albumdata_from_disc(disc):
+        """Convert MusicBrainz disc result to multiple albumdata."""
+        result = []
+
+        releases = disc['release-list']
+        for release in releases:
+            albumdata = {}
+            albumdata['title'] = release['title']
+            albumdata['date'] = release['date']
+            albumdata['tracks'] = []
+            albumdata['artists'] = []
+            albumartist = release['artist-credit-phrase']
+            albumdata['albumartist'] = albumartist
+
+            medium = release['medium-list'][0]
+            for track in medium['track-list']:
+                recording = track['recording']
+                albumdata['tracks'].append({
+                    'title': recording['title'],
+                    'artist': recording['artist-credit-phrase']
+                })
+
+            result.append(albumdata)
+        return result
+
+    @classmethod
+    def _albumdata_from_musicbrainz(cls, result):
+        """Convert MusicBrainz result to list of usable albumdata."""
+        
+        if 'cdstub' in result:
+            return [cls._albumdata_from_cdstub(result['cdstub'])]
+        elif 'disc' in result:
+            return cls._albumdata_from_disc(result['disc'])
+
     @classmethod
     def from_user_input(cls, deps, config):
         """Initialises an Albumdata object from interactive user input.
@@ -132,10 +188,26 @@ class Albumdata:
             try:
                 musicbrainz_result = musicbrainzngs.get_releases_by_discid(
                     disc.id, includes=['recordings', 'artist-credits'])
-                results.append(
+                # We get a list of results so we call extend
+                results.extend(
                     cls._albumdata_from_musicbrainz(musicbrainz_result))
             except musicbrainzngs.MusicBrainzError:
                 pass
+
+        # TODO: ADD THE EMPTY CHOICE
+        
+        for result in results:
+            # Merge in the common data
+            result.update(common_albumdata)
+            # Template filenames for the songs
+            # TODO: actually template them
+            # TODO: This sucks, actually? If we have an editor it needs
+            # a hotkey for "automatically generate filename from edited
+            # title" or this'll be *worse* than before
+            for track in result['tracks']:
+                track['filename'] = 'TODO'
+
+        # TODO: PERFORM THE SELECTION
 
 
     @property
@@ -154,81 +226,8 @@ class Albumdata:
         return self._tracks
 
 
-# ------------------------------
-
-class ParanoiaError(Exception):
-    pass
-
-
-def find_cdparanoia():
-    return find_executable("cdparanoia", ParanoiaError)
-
-
-def print_tracks(release_counter, albumdata):
-    print("------")
-    print(release_counter, "-", albumdata["albumartist"], "/", albumdata["title"])
-    print("---")
-
-    track_counter = 0
-    for track in albumdata["tracks"]:
-        track_counter += 1
-        print(track_counter, "-", track)
-    print("------\n")
-
-
-def parsed_from_disc(result):
-    parsed = []
-    data = result["disc"]["release-list"]
-
-    release_counter = 0
-    for release in data:
-        albumdata = {}
-        albumdata["title"] = release["title"]
-        albumdata["date"] = release["date"]
-        albumdata["tracks"] = []
-        albumdata["artists"] = []
-        albumartist = release["artist-credit-phrase"]
-        albumdata["albumartist"] = albumartist
-
-        release_counter += 1
-        track_counter = 0
-        medium = release["medium-list"][0]
-        for track in medium["track-list"]:
-            # Count tracks,
-            track_counter += 1
-            recording = track["recording"]
-            albumdata["tracks"].append(recording["title"])
-            albumdata["artists"].append(recording["artist-credit-phrase"])
-        albumdata["track_count"] = track_counter
-
-        parsed.append(albumdata)
-        print_tracks(release_counter, albumdata)
-    return parsed
-
-
-def parsed_from_cdstub(result):
-    release = result["cdstub"]
-
-    albumdata = {}
-    albumdata["title"] = release["title"]
-    albumdata["date"] = release["date"]
-    albumdata["tracks"] = []
-    albumartist = release["artist"]
-    albumdata["albumartist"] = albumartist
-
-    release_counter = 1
-
-    track_counter = 0
-    for track in release["track-list"]:
-        track_counter += 1
-        albumdata["tracks"].append(track["title"])
-        albumdata["artists"].append(albumartist)
-    albumdata["track_count"] = track_counter
-    parsed.append(albumdata)
-
-    print_tracks(release_counter, albumdata)
-    return albumdata
-
+# REFACTOR LINE (ALL CODE ABOVE NEW) ------------------------------
+#
 
 def musicbrainz_fetch(disc):
 

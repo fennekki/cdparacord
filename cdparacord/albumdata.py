@@ -3,6 +3,7 @@ import musicbrainzngs
 import subprocess
 import os
 import os.path
+import sys
 import shutil
 import textwrap
 from tempfile import NamedTemporaryFile
@@ -51,32 +52,58 @@ class Albumdata:
             self._tracks.append(Track(trackdata))
 
     @staticmethod
-    def _print_albumdata(albumdata, width):
+    def _print_albumdata(albumdata):
         """Print albumdata to fit a terminal.
 
         This is powerfully hacky.
         """
-        field_width_2 = int(width / 2 - 1)
-        field_width_4 = int(width / 4 - 1)
+
+        max_width, max_height = shutil.get_terminal_size()
+
+        min_width = 60
+        width = max(min_width, max_width)
+
+        threshold_width = 80
+        field_width_big = int(width / 2 - 1)
+        field_width_small = int(max(threshold_width, width) / 4 - 1)
+        field_width_extra = width - 2 * field_width_small
 
         # This is extremely ridiculous but should not be unsafe
         double_field_format = '{{:<{}}}  {{:<{}}}'.format(
-            field_width_2, field_width_2)
+            field_width_big, field_width_big)
         triple_field_format = '{{:<{}}} {{:<{}}}  {{:<{}}}'.format(
-            field_width_4, field_width_4, field_width_2)
+            field_width_small, field_width_small, field_width_extra)
+
+        threshold_met = False
+        if width >= threshold_width and field_width_extra > 10:
+            threshold_met = True
 
         print('=' * width)
-        print(double_field_format.format(
-            textwrap.shorten(albumdata['albumartist'], field_width_2),
-            textwrap.shorten(albumdata['title'], field_width_2)))
+        if threshold_met:
+            print(triple_field_format.format(
+                textwrap.shorten(albumdata['albumartist'], field_width_big),
+                textwrap.shorten(albumdata['title'], field_width_big),
+                textwrap.shorten(albumdata['discid'], field_width_extra)))
+        else:
+            print(double_field_format.format(
+                textwrap.shorten(albumdata['albumartist'], field_width_big),
+                textwrap.shorten(albumdata['title'], field_width_big)))
         print('=' * width)
-        print(triple_field_format.format('Track', 'Track Artist', 'Suggested filename'))
+        if threshold_met:
+            print(triple_field_format.format('Track', 'Track Artist', 'Suggested filename'))
+        else:
+            print(double_field_format.format('Track', 'Track Artist'))
         print('-' * width)
         for track in albumdata['tracks']:
-            print(triple_field_format.format(
-                textwrap.shorten(track['title'], field_width_4),
-                textwrap.shorten(track['artist'], field_width_4),
-                textwrap.shorten(track['filename'], field_width_2)))
+            if threshold_met:
+                print(triple_field_format.format(
+                    textwrap.shorten(track['title'], field_width_small),
+                    textwrap.shorten(track['artist'], field_width_small),
+                    textwrap.shorten(track['filename'], field_width_extra)))
+            else:
+                print(double_field_format.format(
+                    textwrap.shorten(track['title'], field_width_big),
+                    textwrap.shorten(track['artist'], field_width_big)))
         print('-' * width)
 
     @staticmethod
@@ -141,7 +168,7 @@ class Albumdata:
                 return [cls._albumdata_from_cdstub(result['cdstub'])]
             elif 'disc' in result:
                 return cls._albumdata_from_disc(result['disc'])
-        except musicbrainzngs.MusicBrainzError:
+        except musicbrainzngs.MusicBrainzError: # pragma: no cover
             return []
 
     @classmethod
@@ -158,6 +185,32 @@ class Albumdata:
                 return loaded_albumdata
 
     @classmethod
+    def _get_track_count(cls, cdparanoia):
+        """Find track count by running cdparanoia."""
+        # Let's do a dirty hack to find the track count!
+        proc = subprocess.run([cdparanoia, '-sQ'],
+                              universal_newlines=True,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT)
+        # Error if it failed
+        proc.check_returncode()
+
+        output = proc.stdout
+        extract_next = False
+        lines = output.split('\n')
+        # Go through lines in reverse until we find TOTAL
+        # The line above that has the number
+        for i in reversed(range(len(lines))):
+            line = lines[i]
+            if extract_next:
+                parts = line.split(".")
+                num = int(parts[0].strip())
+                return num
+            elif line[0:5] == 'TOTAL':
+                extract_next = True
+
+
+    @classmethod
     def from_user_input(cls, deps, config):
         """Initialises an Albumdata object from interactive user input.
 
@@ -166,11 +219,6 @@ class Albumdata:
 
         # Since we're given deps, discid exists
         import discid
-
-        width, height = shutil.get_terminal_size()
-
-        min_width = 60
-        max_width = max(min_width, width)
 
         use_musicbrainz = config.get('use_musicbrainz')
         reuse_albumdata = config.get('reuse_albumdata')
@@ -184,6 +232,8 @@ class Albumdata:
             uid=os.getuid(), discid=disc)
         albumdata_file = os.path.join(ripdir, 'albumdata.yaml')
 
+        track_count = cls._get_track_count(deps.cdparanoia)
+
         # Data to be merged to the albumdata we select
         common_albumdata = {
             'discid': str(disc),
@@ -194,16 +244,15 @@ class Albumdata:
         # If we are reusing albumdata and it exists, recommend that as a
         # first option
         if reuse_albumdata:
-            loaded_albumdata = _albumdata_from_previous_rip(albumdata_file)
-            results.append(loaded_albumdata)
+            loaded_albumdata = cls._albumdata_from_previous_rip(albumdata_file)
+            if loaded_albumdata is not None:
+                results.append(loaded_albumdata)
 
         # Append results from MusicBrainz if needed
         if use_musicbrainz:
             # We get a list of results so we call extend
             results.extend(cls._albumdata_from_musicbrainz(disc))
 
-        # TODO: calculate the track count somehow
-        track_count = 10
         results.append({
             'source': 'Empty data',
             'title': '',
@@ -217,7 +266,17 @@ class Albumdata:
         })
 
         
+        dropped = []
         for result in results:
+            # Check that the track count is correct
+            if len(result['tracks']) != track_count:
+                print(' '.join("""\
+                    Warning: Source {} dropped for wrong track count (Got {},
+                    {} expected)""".format(
+                        result['source'], len(result['tracks']), track_count
+                    ).split()), file=sys.stderr)
+                dropped.append(result)
+                continue
             # Merge in the common data
             result.update(common_albumdata)
             # Template filenames for the songs
@@ -228,13 +287,63 @@ class Albumdata:
             for track in result['tracks']:
                 track['filename'] = 'TODO'
 
-        # TODO: PERFORM THE SELECTION
-        print('Sources available:')
-        for i in range(1, len(results) + 1):
-            print('{}) {}'.format(i, results[i - 1]['source']))
-        
-        # TODO  while input()
+        # Actually drop results that have the wrong amount of tracks
+        results = [r for r in results if r not in dropped]
 
+        # TODO: PERFORM THE SELECTION
+        
+        selection = None
+        state = 0
+        while selection is None:
+            # Only what we print depends on state: The state transitions
+            # are always the same TODO except maybe "select this"?
+            # State 0 is the first screen, other ones are the options
+            if state == 0:
+                print('=' * max_width)
+                print('Albumdata sources available:')
+                for i in range(1, len(results) + 1):
+                    print('{}) {}'.format(i, results[i - 1]['source']))
+                print('=' * max_width)
+            elif state <= track_count:
+                print('Source {}: {}'.format(
+                    state, results[state - 1]['source']))
+                cls._print_albumdata(results[state - 1])
+
+            print(textwrap.dedent("""\
+                0: return to listing
+                1-{}: select source
+                n: show next source:
+                c: choose current source
+                a: abort
+                """).format(len(results)))
+            s = input("> ").strip()
+
+            if s in ('a', 'A'):
+                # Abort
+                return None
+            elif s in ('n', 'N'):
+                state = (state + 1) % (len(results) + 1)
+                if state == 0:
+                    print("All sources viewed, returning to listing")
+            elif s in ('c', 'C'):
+                if state > 0:
+                    # Select the one being shown
+                    return Albumdata(results[state - 1])
+                else:
+                    print(' '.join("""\
+                        You can only choose current source when looking at a
+                        source""".split()))
+            else:
+                try:
+                    selected = int(s, base=10)
+                    if selected < 1 or selected > len(results):
+                        print('Source number must be between 1 and {}'.format(
+                            len(results)))
+                    else:
+                        # Got a valid one
+                        return Albumdata(results[selected - 1])
+                except ValueError:
+                    print("Invalid command: {}".format(s))
 
     @property
     def ripdir(self):
@@ -254,75 +363,6 @@ class Albumdata:
 
 # REFACTOR LINE (ALL CODE ABOVE NEW) ------------------------------
 #
-
-def musicbrainz_fetch(disc):
-
-    try:
-        # REFACTOR LINE ---
-
-        print("Pick release: ")
-        if "disc" in result:
-            parsed = parsed_from_disc(result)
-        elif "cdstub" in result:
-            parsed = parsed_from_cdstub(result)
-        else:
-            raise CdparacordError("No albumdata found")
-
-        sel = -1
-        release_count = len(parsed)
-        while sel < 1 or sel > release_count:
-            try:
-                sel = int(input("Number between {}-{}: "
-                                .format(1, release_count)))
-            except:
-                pass
-
-        selected = parsed[sel - 1]
-
-    except musicbrainzngs.ResponseError:
-        print("not found")
-
-        # Let's do a dirty hack to find the track count!
-        proc = subprocess.run([cdparanoia, '-sQ'],
-                              universal_newlines=True,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT)
-        # Error if it failed
-        proc.check_returncode()
-
-        output = proc.stdout
-        start = False
-        for line in output.split("\n"):
-            # Stop at the end of the output
-            if line[0:5] == "TOTAL":
-                start = False
-
-            if start:
-                parts = line.split(".")
-                num = int(parts[0].strip())
-
-            # Start after the ===== line
-            if not start and len(line) > 0 and line[0] == "=":
-                start = True
-
-        # Now we know how many tracks this CD has
-        # Don't even give a shit about CD-Text
-        selected = {
-            "title": "",
-            "albumartist": "",
-            "date": "",
-            "track_count": num,
-            "tracks": [],
-            "artists": []
-        }
-
-        # Generate right amount of track entries
-        for i in range(selected["track_count"]):
-            selected["tracks"].append("")
-            selected["artists"].append("")
-
-    return selected
-
 
 def get_final_albumdata():
 

@@ -209,37 +209,67 @@ def test_initialise_albumdata():
     assert a.track_count == 1
 
 
-def test_print_albumdata_80(capsys):
+def test_print_albumdata_80(capsys, monkeypatch):
     """Try to print albumdata to width 80 correctly."""
     expected = """\
 ================================================================================
-Test Artist                              Test album                             
+Test Artist         Test album           test                                      
 ================================================================================
-Track               Track Artist         Suggested filename                     
+Track               Track Artist         Suggested filename                        
 --------------------------------------------------------------------------------
-Test track          Test Artist          /home/user/Music/Test Artist/Test [...]
+Test track          Test Artist          /home/user/Music/Test Artist/Test [...]   
 --------------------------------------------------------------------------------
 """
 
-    albumdata.Albumdata._print_albumdata(testdata, 80)
+    monkeypatch.setattr('shutil.get_terminal_size',
+        lambda: (80, 24))
+
+    albumdata.Albumdata._print_albumdata(testdata)
     out, err = capsys.readouterr()
 
     assert out == expected
 
 
-def test_print_albumdata_60(capsys):
+def test_print_albumdata_60(capsys, monkeypatch):
     """Try to print albumdata to width 60 correctly."""
     expected = """\
 ============================================================
 Test Artist                    Test album                   
 ============================================================
-Track          Track Artist    Suggested filename           
+Track                          Track Artist                 
 ------------------------------------------------------------
-Test track     Test Artist     /home/user/Music/Test [...]  
+Test track                     Test Artist                  
 ------------------------------------------------------------
 """
 
-    albumdata.Albumdata._print_albumdata(testdata, 60)
+    monkeypatch.setattr('shutil.get_terminal_size',
+        lambda: (60, 24))
+
+    albumdata.Albumdata._print_albumdata(testdata)
     out, err = capsys.readouterr()
 
     assert out == expected
+
+def test_get_track_count(monkeypatch):
+    """Test track count getting with a fake cdparanoia output."""
+    testdata = """\
+cdparanoia III release 10.2 (September 11, 2008)
+
+
+Table of contents (audio tracks only):
+track        length               begin        copy pre ch
+===========================================================
+  1.    1000 [00:10.00]        150 [00:01.50]    no   no  2
+TOTAL   1150 [00:11.50]        (audio only)
+"""
+    class FakeProcess:
+        def check_returncode(self):
+            pass
+        
+        @property
+        def stdout(self):
+            return testdata
+
+    obj = FakeProcess()
+    monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
+    assert albumdata.Albumdata._get_track_count('') == 1

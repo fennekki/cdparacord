@@ -443,3 +443,42 @@ def test_invalid_previous_result(monkeypatch):
 
     with pytest.raises(albumdata.AlbumdataError):
         a = albumdata.Albumdata._albumdata_from_previous_rip('')
+
+
+def test_from_user_input(monkeypatch):
+    monkeypatch.setattr('discid.read', lambda: 'test')
+    monkeypatch.setattr('os.getuid', lambda: 1000)
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._get_track_count', lambda *x: 1)
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._albumdata_from_previous_rip', lambda *x: testdata)
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._albumdata_from_musicbrainz', lambda *x: [])
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._select_albumdata', lambda *x: None)
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._edit_albumdata', lambda *x: None)
+
+    class FakeDeps:
+        @property
+        def cdparanoia(self):
+            pass
+
+    class FakeConfig:
+        def __init__(self):
+            self.dict = {'use_musicbrainz': True, 'reuse_albumdata': True}
+
+        def get(self, a):
+            return self.dict[a]
+
+    deps = FakeDeps()
+    config = FakeConfig()
+    assert albumdata.Albumdata.from_user_input(deps, config) is None
+    
+    monkeypatch.setitem(testdata, 'tracks', [])
+    config.dict['use_musicbrainz'] = False
+    config.dict['reuse_albumdata'] = True
+    assert albumdata.Albumdata.from_user_input(deps, config) is None
+
+    config.dict['use_musicbrainz'] = True
+    config.dict['reuse_albumdata'] = False
+    assert albumdata.Albumdata.from_user_input(deps, config) is None
+
+    config.dict['use_musicbrainz'] = False
+    config.dict['reuse_albumdata'] = False
+    assert albumdata.Albumdata.from_user_input(deps, config) is None

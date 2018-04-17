@@ -168,7 +168,7 @@ class Albumdata:
                 return [cls._albumdata_from_cdstub(result['cdstub'])]
             elif 'disc' in result:
                 return cls._albumdata_from_disc(result['disc'])
-        except musicbrainzngs.MusicBrainzError: # pragma: no cover
+        except musicbrainzngs.MusicBrainzError:  # pragma: no cover
             return []
 
     @classmethod
@@ -293,7 +293,7 @@ class Albumdata:
 
         try:
             disc = discid.read()
-        except discid.DiscError:
+        except discid.DiscError:  # pragma: no cover
             raise AlbumdataError('Could not read CD')
 
         ripdir = '{tmp}/cdparacord/{uid}-{discid}'.format(

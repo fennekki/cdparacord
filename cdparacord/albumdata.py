@@ -209,6 +209,66 @@ class Albumdata:
             elif line[0:5] == 'TOTAL':
                 extract_next = True
 
+    @classmethod
+    def _select_albumdata(cls, results, track_count):
+        max_width, max_height = shutil.get_terminal_size()
+
+        selection = None
+        state = 0
+        while selection is None:
+            # Only what we print depends on state: The state transitions
+            # are always the same TODO except maybe "select this"?
+            # State 0 is the first screen, other ones are the options
+            if state == 0:
+                print('=' * max_width)
+                print('Albumdata sources available:')
+                for i in range(1, len(results) + 1):
+                    print('{}) {}'.format(i, results[i - 1]['source']))
+                print('=' * max_width)
+            elif state <= track_count:
+                print('Source {}: {}'.format(
+                    state, results[state - 1]['source']))
+                cls._print_albumdata(results[state - 1])
+
+            print(textwrap.dedent("""\
+                0: return to listing
+                1-{}: select source
+                n: show next source:
+                c: choose current source
+                a: abort
+                """).format(len(results)))
+            s = input("> ").strip()
+
+            if s in ('a', 'A'):
+                # Abort
+                return None
+            elif s in ('n', 'N'):
+                state = (state + 1) % (len(results) + 1)
+                if state == 0:
+                    print("All sources viewed, returning to listing")
+            elif s in ('c', 'C'):
+                if state > 0:
+                    # Select the one being shown
+                    return Albumdata(results[state - 1])
+                else:
+                    print(' '.join("""\
+                        You can only choose current source when looking at a
+                        source""".split()))
+            else:
+                try:
+                    selected = int(s, base=10)
+                    if selected < 1 or selected > len(results):
+                        if selected == 0:
+                            # back to menu
+                            state = 0
+                            continue
+                        print('Source number must be between 1 and {}'.format(
+                            len(results)))
+                    else:
+                        # Got a valid one
+                        return Albumdata(results[selected - 1])
+                except ValueError:
+                    print("Invalid command: {}".format(s))
 
     @classmethod
     def from_user_input(cls, deps, config):
@@ -290,60 +350,7 @@ class Albumdata:
         # Actually drop results that have the wrong amount of tracks
         results = [r for r in results if r not in dropped]
 
-        # TODO: PERFORM THE SELECTION
-        
-        selection = None
-        state = 0
-        while selection is None:
-            # Only what we print depends on state: The state transitions
-            # are always the same TODO except maybe "select this"?
-            # State 0 is the first screen, other ones are the options
-            if state == 0:
-                print('=' * max_width)
-                print('Albumdata sources available:')
-                for i in range(1, len(results) + 1):
-                    print('{}) {}'.format(i, results[i - 1]['source']))
-                print('=' * max_width)
-            elif state <= track_count:
-                print('Source {}: {}'.format(
-                    state, results[state - 1]['source']))
-                cls._print_albumdata(results[state - 1])
-
-            print(textwrap.dedent("""\
-                0: return to listing
-                1-{}: select source
-                n: show next source:
-                c: choose current source
-                a: abort
-                """).format(len(results)))
-            s = input("> ").strip()
-
-            if s in ('a', 'A'):
-                # Abort
-                return None
-            elif s in ('n', 'N'):
-                state = (state + 1) % (len(results) + 1)
-                if state == 0:
-                    print("All sources viewed, returning to listing")
-            elif s in ('c', 'C'):
-                if state > 0:
-                    # Select the one being shown
-                    return Albumdata(results[state - 1])
-                else:
-                    print(' '.join("""\
-                        You can only choose current source when looking at a
-                        source""".split()))
-            else:
-                try:
-                    selected = int(s, base=10)
-                    if selected < 1 or selected > len(results):
-                        print('Source number must be between 1 and {}'.format(
-                            len(results)))
-                    else:
-                        # Got a valid one
-                        return Albumdata(results[selected - 1])
-                except ValueError:
-                    print("Invalid command: {}".format(s))
+        return cls._select_albumdata(results, track_count)
 
     @property
     def ripdir(self):

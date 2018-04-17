@@ -7,6 +7,7 @@ from cdparacord import albumdata
 
 testdata = {
         'discid': 'test',
+        'source': 'Test data',
         'ripdir': '/tmp/cdparacord/1000-test',
         'title': 'Test album',
         'albumartist': 'Test Artist',
@@ -273,3 +274,102 @@ TOTAL   1150 [00:11.50]        (audio only)
     obj = FakeProcess()
     monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
     assert albumdata.Albumdata._get_track_count('') == 1
+
+def test_select_albumdata(capsys, monkeypatch):
+    """Test that the albumdata selection works as expected.
+
+    The expected data is rather massive and needs to be updated
+    regularly but this works as effectively a regression test in that
+    regard. Maybe.
+    """
+    input_sequence = ('n\n', 'n\n', '0\n', 'c\n', 'n\n', 'c\n')
+
+    expected = """\
+============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> Source 1: Test data
+============================================================
+Test Artist                    Test album                   
+============================================================
+Track                          Track Artist                 
+------------------------------------------------------------
+Test track                     Test Artist                  
+------------------------------------------------------------
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> All sources viewed, returning to listing
+============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> ============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> You can only choose current source when looking at a source
+============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> Source 1: Test data
+============================================================
+Test Artist                    Test album                   
+============================================================
+Track                          Track Artist                 
+------------------------------------------------------------
+Test track                     Test Artist                  
+------------------------------------------------------------
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> \
+"""
+
+    fake_input_generator = (i for i in input_sequence)
+    def fake_input(prompt):
+        print(prompt, end='')
+        try:
+            return next(fake_input_generator)
+        except StopIteration:
+            return 
+    monkeypatch.setattr('builtins.input', fake_input)
+    monkeypatch.setattr('shutil.get_terminal_size',
+        lambda: (60, 24))
+
+    albumdata.Albumdata._select_albumdata([testdata], 1)
+    out, err = capsys.readouterr()
+
+    assert out == expected

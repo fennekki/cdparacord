@@ -282,9 +282,10 @@ def test_select_albumdata(capsys, monkeypatch):
     regularly but this works as effectively a regression test in that
     regard. Maybe.
     """
-    input_sequence = ('n\n', 'n\n', '0\n', 'c\n', 'n\n', 'c\n')
-
-    expected = """\
+    input_sequence = []
+    expected = []
+    input_sequence.append(('n\n', 'n\n', '0\n', 'c\n', 'n\n', 'c\n'))
+    expected.append("""\
 ============================================================
 Albumdata sources available:
 1) Test data
@@ -355,21 +356,69 @@ n: show next source:
 c: choose current source
 a: abort
 
-> \
-"""
+> """)
+    input_sequence.append(('11\n', '1\n'))
+    expected.append("""\
+============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
 
-    fake_input_generator = (i for i in input_sequence)
-    def fake_input(prompt):
-        print(prompt, end='')
-        try:
-            return next(fake_input_generator)
-        except StopIteration:
-            return 
-    monkeypatch.setattr('builtins.input', fake_input)
+> Source number must be between 1 and 1
+============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> """)
+    input_sequence.append(('tööt\n', 'a\n'))
+    expected.append("""\
+============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> Invalid command: tööt
+============================================================
+Albumdata sources available:
+1) Test data
+============================================================
+0: return to listing
+1-1: select source
+n: show next source:
+c: choose current source
+a: abort
+
+> """)
+
     monkeypatch.setattr('shutil.get_terminal_size',
         lambda: (60, 24))
 
-    albumdata.Albumdata._select_albumdata([testdata], 1)
-    out, err = capsys.readouterr()
+    for test_index in range(len(input_sequence)):
+        fake_input_generator = (i for i in input_sequence[test_index])
+        def fake_input(prompt):
+            print(prompt, end='')
+            try:
+                return next(fake_input_generator)
+            except StopIteration:
+                return 
+        monkeypatch.setattr('builtins.input', fake_input)
+        albumdata.Albumdata._select_albumdata([testdata], 1)
+        out, err = capsys.readouterr()
 
-    assert out == expected
+        assert out == expected[test_index]

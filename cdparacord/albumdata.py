@@ -271,7 +271,7 @@ class Albumdata:
                     print("Invalid command: {}".format(s))
 
     @classmethod
-    def _edit_albumdata(cls, selected, track_count): 
+    def _edit_albumdata(cls, selected, track_count):
         if selected is None:
             return None
 
@@ -333,7 +333,7 @@ class Albumdata:
             }] * track_count
         })
 
-        
+
         dropped = []
         for result in results:
             # Check that the track count is correct

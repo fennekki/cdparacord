@@ -190,7 +190,8 @@ class Config:
         """
         for key in d:
             if key in self._config:
-                self._config[key] = d[key]
+                if d[key] is not None:
+                    self._config[key] = d[key]
             elif not quiet_ignore and key not in self._config:
                 print('Warning: Unknown configuration key {}'.format(key),
                     file=sys.stderr)

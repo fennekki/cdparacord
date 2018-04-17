@@ -1,14 +1,14 @@
 """Tools for dealing with album data."""
 import musicbrainzngs
-import subprocess
 import os
 import os.path
-import sys
 import shutil
+import subprocess
+import sys
+import tempfile
 import textwrap
-from tempfile import NamedTemporaryFile
+import yaml
 from .appinfo import __version__, __url__
-from .utils import find_executable
 from .error import CdparacordError
 
 
@@ -66,7 +66,7 @@ class Albumdata:
         threshold_width = 80
         field_width_big = int(width / 2 - 1)
         field_width_small = int(max(threshold_width, width) / 4 - 1)
-        field_width_extra = width - 2 * field_width_small
+        field_width_extra = width - 2 * field_width_small - 3
 
         # This is extremely ridiculous but should not be unsafe
         double_field_format = '{{:<{}}}  {{:<{}}}'.format(
@@ -249,7 +249,7 @@ class Albumdata:
             elif s in ('c', 'C'):
                 if state > 0:
                     # Select the one being shown
-                    return Albumdata(results[state - 1])
+                    return results[state - 1]
                 else:
                     print(' '.join("""\
                         You can only choose current source when looking at a
@@ -266,9 +266,17 @@ class Albumdata:
                             len(results)))
                     else:
                         # Got a valid one
-                        return Albumdata(results[selected - 1])
+                        return results[selected - 1]
                 except ValueError:
                     print("Invalid command: {}".format(s))
+
+    @classmethod
+    def _edit_albumdata(cls, selected, track_count): 
+        if selected is None:
+            return None
+
+        state = 0
+
 
     @classmethod
     def from_user_input(cls, deps, config):
@@ -288,8 +296,8 @@ class Albumdata:
         except discid.DiscError:
             raise AlbumdataError('Could not read CD')
 
-        ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
-            uid=os.getuid(), discid=disc)
+        ripdir = '{tmp}/cdparacord/{uid}-{discid}'.format(
+            tmp=tempfile.gettempdir(), uid=os.getuid(), discid=disc)
         albumdata_file = os.path.join(ripdir, 'albumdata.yaml')
 
         track_count = cls._get_track_count(deps.cdparanoia)
@@ -350,7 +358,10 @@ class Albumdata:
         # Actually drop results that have the wrong amount of tracks
         results = [r for r in results if r not in dropped]
 
-        return cls._select_albumdata(results, track_count)
+        selected = cls._select_albumdata(results, track_count)
+
+        # Edit albumdata
+        return cls._edit_albumdata(selected, track_count)
 
     @property
     def ripdir(self):
@@ -366,91 +377,3 @@ class Albumdata:
     def tracks(self):
         """Return list of tracks"""
         return self._tracks
-
-
-# REFACTOR LINE (ALL CODE ABOVE NEW) ------------------------------
-#
-
-def get_final_albumdata():
-
-    # ---- refactor line
-    datafile = NamedTemporaryFile(
-            prefix="cdparacord", mode="w+", delete=False)
-    datafile_name = datafile.name
-
-    d = [
-        "ALBUMARTIST={}\n".format(selected["albumartist"]),
-        "TITLE={}\n".format(selected["title"]),
-        "DATE={}\n".format(selected["date"]),
-        "TRACK_COUNT={}\n".format(selected["track_count"])
-     ]
-
-    for i in range(len(selected["tracks"])):
-        # Group the tracks nicely
-        d.append("\n")
-        d.append("TRACK={}\n".format(selected["tracks"][i]))
-        d.append("ARTIST={}\n".format(selected["artists"][i]))
-    d.append("\n")
-    d.append('# If you wish to correct this information in MusicBrainz,'
-             ' use the following URL:\n')
-    d.append("# {}\n".format(disc.submission_url))
-
-    datafile.writelines(d)
-    datafile.close()
-
-    # TODO maybe some people don't enjoy vim
-    subprocess.run(["/usr/bin/env", "vim", datafile_name])
-
-    # Track count doesn't change
-    final = {
-        "discid": str(disc),
-        "track_count": selected["track_count"],
-        "tracks": [],
-        "artists": []
-    }
-
-    # Parse the file to a map again
-    with open(datafile_name, mode="r") as datafile:
-        for line in datafile.readlines():
-            if line.rstrip() == "":
-                # Skip this line, it's empty
-                continue
-            if line.rstrip()[0] == "#":
-                # Comment; continue
-                continue
-            key, val = line.rstrip().split("=", 1)
-            if key == "ALBUMARTIST":
-                final["albumartist"] = val
-            elif key == "TITLE":
-                final["title"] = val
-            elif key == "TRACK_COUNT":
-                # Currently does nothing
-                ...
-            elif key == "TRACK":
-                final["tracks"].append(val)
-            elif key == "ARTIST":
-                if (val != ""):
-                    final["artists"].append(val)
-                else:
-                    final["artists"].append(final["albumartist"])
-            elif key == "DATE":
-                final["date"] = val
-            else:
-                raise CdparacordError('Unknown key {}'.format(key))
-
-    # We no longer need the temporary file, remove it
-    os.remove(datafile_name)
-
-    # Check that we haven't somehow given names for the wrong amount
-    # of tracks
-    if len(final["tracks"]) != final["track_count"]:
-        raise CdparacordError("Wrong tag count: expected {}, got {}"
-                       .format(final["track_count"],
-                               len(final["tracks"])))
-
-    if len(final["artists"]) != final["track_count"]:
-        raise CdparacordError("Wrong artist count: expected {}, got {}"
-                       .format(final["track_count"],
-                               len(final["artists"])))
-
-    return final

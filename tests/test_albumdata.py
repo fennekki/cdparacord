@@ -2,6 +2,8 @@
 
 import pytest
 import copy
+import io
+import yaml
 from cdparacord import albumdata
 
 
@@ -214,11 +216,11 @@ def test_print_albumdata_80(capsys, monkeypatch):
     """Try to print albumdata to width 80 correctly."""
     expected = """\
 ================================================================================
-Test Artist         Test album           test                                      
+Test Artist         Test album           test                                   
 ================================================================================
-Track               Track Artist         Suggested filename                        
+Track               Track Artist         Suggested filename                     
 --------------------------------------------------------------------------------
-Test track          Test Artist          /home/user/Music/Test Artist/Test [...]   
+Test track          Test Artist          /home/user/Music/Test Artist/Test [...]
 --------------------------------------------------------------------------------
 """
 
@@ -422,3 +424,22 @@ a: abort
         out, err = capsys.readouterr()
 
         assert out == expected[test_index]
+
+
+def test_previous_result(monkeypatch):
+    monkeypatch.setattr('os.path.isfile', lambda *x: True)
+    monkeypatch.setattr('builtins.open', lambda *x: io.StringIO(yaml.safe_dump(testdata)))
+
+    a = albumdata.Albumdata._albumdata_from_previous_rip('')
+    assert a['source'] == 'Previous rip'
+    assert a['title'] == testdata['title']
+    assert a['albumartist'] == testdata['albumartist']
+    assert a['tracks'][0]['title'] == testdata['tracks'][0]['title']
+
+
+def test_invalid_previous_result(monkeypatch):
+    monkeypatch.setattr('os.path.isfile', lambda *x: True)
+    monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('[]'))
+
+    with pytest.raises(albumdata.AlbumdataError):
+        a = albumdata.Albumdata._albumdata_from_previous_rip('')

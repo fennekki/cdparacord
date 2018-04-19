@@ -1,6 +1,7 @@
 """Tests for the albumdata module."""
 
 import pytest
+import contextlib
 import copy
 import io
 import yaml
@@ -24,7 +25,10 @@ testdata = {
     }
 
 testdata_wrong = copy.deepcopy(testdata)
-testdata_wrong['track_count'] = 2
+testdata_wrong['track_count'] = 3
+testdata_wrong['tracks'].append({'title': '', 'artist': '', 'filename': ''})
+testdata_wrong['discid'] = 'wrong'
+testdata_wrong['ripdir'] = 'wrong'
 
 
 testdata_cdstub_result = {
@@ -459,6 +463,9 @@ def test_from_user_input(monkeypatch):
         def cdparanoia(self):
             pass
 
+        def editor(self):
+            pass
+
     class FakeConfig:
         def __init__(self):
             self.dict = {'use_musicbrainz': True, 'reuse_albumdata': True}
@@ -482,3 +489,44 @@ def test_from_user_input(monkeypatch):
     config.dict['use_musicbrainz'] = False
     config.dict['reuse_albumdata'] = False
     assert albumdata.Albumdata.from_user_input(deps, config) is None
+
+
+def test_edit_albumdata(monkeypatch):
+    """Test _edit_albumdata."""
+    @contextlib.contextmanager
+    def fake_tempfile(*x, **y):
+        class FakeTempfile:
+            def flush(*x):
+                pass
+
+            def seek(*x):
+                pass
+
+            @property
+            def name(*x):
+                pass
+        yield FakeTempfile()
+
+    monkeypatch.setattr('tempfile.NamedTemporaryFile', fake_tempfile)
+    monkeypatch.setattr('subprocess.run', lambda *x, **y: None)
+    monkeypatch.setattr('yaml.safe_dump', lambda *x, **y: None)
+    monkeypatch.setattr('yaml.safe_load', lambda *x, **y: testdata)
+
+    # Test with input None
+    albumdata.Albumdata._edit_albumdata(None, 1, '')
+    
+    # Succesful edit & save
+    seq = (i for i in ('e\n', 's\n'))
+    monkeypatch.setattr('builtins.input', lambda *x: next(seq))
+    albumdata.Albumdata._edit_albumdata(testdata, 1, '')
+
+    # Succesful regen and rip
+    seq = (i for i in ('f\n', 'r\n'))
+    monkeypatch.setattr('builtins.input', lambda *x: next(seq))
+    albumdata.Albumdata._edit_albumdata(testdata, 1, '')
+
+    # Unsuccesful edit and abandon (all things wrong in edit)
+    monkeypatch.setattr('yaml.safe_load', lambda *x, **y: testdata_wrong)
+    seq = (i for i in ('e\n', 'a\n'))
+    monkeypatch.setattr('builtins.input', lambda *x: next(seq))
+    albumdata.Albumdata._edit_albumdata(testdata, 1, '')

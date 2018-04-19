@@ -46,6 +46,7 @@ class Albumdata:
         acquired from MusicBrainz, the user, or any albumdata already on
         disk.
         """
+        self._dict = albumdata
         self._ripdir = albumdata['ripdir']
         self._tracks = []
         for trackdata in albumdata['tracks']:
@@ -213,9 +214,8 @@ class Albumdata:
     def _select_albumdata(cls, results, track_count):
         max_width, max_height = shutil.get_terminal_size()
 
-        selection = None
         state = 0
-        while selection is None:
+        while True:
             # Only what we print depends on state: The state transitions
             # are always the same TODO except maybe "select this"?
             # State 0 is the first screen, other ones are the options
@@ -271,12 +271,77 @@ class Albumdata:
                     print("Invalid command: {}".format(s))
 
     @classmethod
-    def _edit_albumdata(cls, selected, track_count):
+    def _edit_albumdata(cls, selected, track_count, editor):
         if selected is None:
             return None
 
-        state = 0
+        data = selected
+        state = None
+        while True:
+            if state == 'e':
+                with tempfile.NamedTemporaryFile(mode='w+') as f:
+                    yaml.safe_dump(data, f, default_flow_style=False,
+                        allow_unicode=True)
+                    f.flush()
+                    subprocess.run([editor, f.name])
+                    f.seek(0)
+                    temp_data = yaml.safe_load(f)
+                
+                    erroneous_data = False
+                    # TODO: more validation
+                    if len(temp_data['tracks']) != len(data['tracks']):
+                        print(' '.join("""Wrong track count in edited
+                            data (Got {}, {} expected)""".split()).format(
+                                len(temp_data['tracks']), len(data['tracks'])),
+                            file=sys.stderr)
+                        erroneous_data = True
 
+                    if len(temp_data['discid']) != len(data['discid']):
+                        print('Disc id was edited', file=sys.stderr)
+                        erroneous_data = True
+
+                    if len(temp_data['ripdir']) != len(data['ripdir']):
+                        print('Ripdir was edited', file=sys.stderr)
+                        erroneous_data = True
+
+                    if erroneous_data:
+                        print('Edited data not accepted.')
+                    else:
+                        data = temp_data
+                    state = None
+            elif state == 'f':
+                # TODO: Regenerate filenames, but we don't even generate
+                # them at all yet, so,
+                ...
+                state = None
+            elif state == 'r':
+                # We start the rip by returing Albumdata :D
+                return Albumdata(data)
+            elif state == 'a':
+                # Just abort, do nothing else
+                return None
+            elif state == 's':
+                print('Saving state...')
+                # Make the dir here since we won't be making it in main
+                # and we need it now
+                # Otherwise Rip will generate this file
+                os.makedirs(data['ripdir'], 0o700, exist_ok=True)
+
+                albumdata_file = os.path.join(
+                    data['ripdir'], 'albumdata.yaml')
+                with open(albumdata_file, 'w') as f:
+                    yaml.safe_dump(data, f)
+                return None
+            else:
+                print(textwrap.dedent("""\
+                    Select action. 'Rip' starts the ripping process.
+                    e: edit
+                    f: regenerate filenames
+                    r: rip
+                    s: save and abort
+                    a: discard and abort
+                    """))
+                state = input("> ").strip()
 
     @classmethod
     def from_user_input(cls, deps, config):
@@ -321,18 +386,25 @@ class Albumdata:
             # We get a list of results so we call extend
             results.extend(cls._albumdata_from_musicbrainz(disc))
 
-        results.append({
+        emptydata = {
             'source': 'Empty data',
             'title': '',
             'date': '',
             'albumartist': '',
             'artists': '',
-            'tracks': [{
+            'tracks': []
+        }
+
+        # We do this to avoid emitting anchors in the yaml (which it
+        # would do if the objects were the same). This is for user
+        # friendliness.
+        for _ in range(track_count):
+            emptydata['tracks'].append({
                 'title': '',
                 'artist': ''
-            }] * track_count
-        })
+            })
 
+        results.append(emptydata)
 
         dropped = []
         for result in results:
@@ -348,12 +420,12 @@ class Albumdata:
             # Merge in the common data
             result.update(common_albumdata)
             # Template filenames for the songs
-            # TODO: actually template them
-            # TODO: This sucks, actually? If we have an editor it needs
-            # a hotkey for "automatically generate filename from edited
-            # title" or this'll be *worse* than before
             for track in result['tracks']:
-                track['filename'] = 'TODO'
+                # If filenames exist, keep them (usually only previous
+                # rip data)
+                if not 'filename' in track:
+                    # TODO: actually template them
+                    track['filename'] = 'TODO'
 
         # Actually drop results that have the wrong amount of tracks
         results = [r for r in results if r not in dropped]
@@ -361,7 +433,7 @@ class Albumdata:
         selected = cls._select_albumdata(results, track_count)
 
         # Edit albumdata
-        return cls._edit_albumdata(selected, track_count)
+        return cls._edit_albumdata(selected, track_count, deps.editor)
 
     @property
     def ripdir(self):
@@ -377,3 +449,13 @@ class Albumdata:
     def tracks(self):
         """Return list of tracks"""
         return self._tracks
+
+    @property
+    def dict(self):
+        """Return dict this albumdata was generated from.
+
+        Note: Editing this will edit the actual data in the dict, but
+        will *not* update the properties of the Albumdata object! If you
+        want to change the properties, you need to create a new
+        Albumdata object from the edited data.
+        """

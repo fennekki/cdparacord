@@ -3,13 +3,16 @@ import musicbrainzngs
 import os
 import os.path
 import shutil
+import string
 import subprocess
 import sys
 import tempfile
 import textwrap
+import unicodedata
 import yaml
 from .appinfo import __version__, __url__
 from .error import CdparacordError
+from .xdg import XDG_MUSIC_DIR
 
 
 class AlbumdataError(CdparacordError):
@@ -21,6 +24,7 @@ class Track:
         self._title = trackdata['title']
         self._artist = trackdata['artist']
         self._filename = trackdata['filename']
+        self._tracknumber = trackdata['tracknumber']
 
     @property
     def title(self):
@@ -49,7 +53,10 @@ class Albumdata:
         self._dict = albumdata
         self._ripdir = albumdata['ripdir']
         self._tracks = []
+        counter = 0
         for trackdata in albumdata['tracks']:
+            counter = counter + 1
+            trackdata['tracknumber'] = counter
             self._tracks.append(Track(trackdata))
 
     @staticmethod
@@ -216,8 +223,6 @@ class Albumdata:
 
         state = 0
         while True:
-            # Only what we print depends on state: The state transitions
-            # are always the same TODO except maybe "select this"?
             # State 0 is the first screen, other ones are the options
             if state == 0:
                 print('=' * max_width)
@@ -271,9 +276,73 @@ class Albumdata:
                     print("Invalid command: {}".format(s))
 
     @classmethod
-    def _edit_albumdata(cls, selected, track_count, editor):
+    def _generate_filename(cls, data, track, tracknumber, config):
+        # TODO: We need the filters here
+        # Also, the templates
+        safetyfilter = config.get('safetyfilter')
+        target_template = string.Template(config.get('target_template'))
+        s = {
+            'album': data['title'],
+            'artist': track['artist'],
+            'albumartist': data['albumartist'],
+            'tracknumber': '{:02}'.format(tracknumber),
+            'track': track['title']
+        }
+
+        # Apply the safetyfilters to the individual templatable parts so
+        # we can still join them into a file path.
+        for key in s:
+            if safetyfilter == 'ascii':
+                s[key] = s[key].encode(
+                        'ascii', errors='ignore').decode('ascii')
+            elif safetyfilter == 'windows1252':
+                s[key] = (s[key]
+                    .encode('windows-1252', errors='ignore')
+                    .decode('windows-1252'))
+            elif safetyfilter == 'unicode_letternumber':
+                # Remove everything that's not in these categories
+                s[key] = ''.join(
+                    c for c in s[key] if unicodedata.category(c) in
+                        ('Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nd', 'Nl', 'No'))
+            elif safetyfilter != 'remove_restricted':
+                # This is the only valid option if it's nothing else
+                raise AlbumdataError(
+                    'Invalid safety filter {}'.format(safetyfilter))
+
+            # Finally apply remove_restricted
+            # The generator expression picks out control characters such
+            # as carriage returns, nulls and tabs.
+            s[key] = ''.join(
+                    c for c in s[key] if unicodedata.category(c)[0] != 'C')\
+                .replace('/', '-')\
+                .replace('\\', '-')\
+                .replace(': ', ' - ')\
+                .replace(':', '-')\
+                .replace('.', '_')\
+                .replace('"', '')\
+                .replace('|', '')\
+                .replace('?', '')\
+                .replace('*', '')\
+                .replace('<', '')\
+                .replace('>', '')\
+                .strip()  # Remove any trailing/leading whitespace
+
+        # Add the 'safe' ones to the dict
+        # These shouldn't need safety filtering, they're not from
+        # albumdata input
+        s.update({
+            'home': os.getenv('HOME'),
+            'xdgmusic': XDG_MUSIC_DIR
+        })
+
+        return target_template.substitute(s)
+
+    @classmethod
+    def _edit_albumdata(cls, selected, track_count, editor, config):
         if selected is None:
             return None
+
+        max_width, max_height = shutil.get_terminal_size()
 
         data = selected
         state = None
@@ -286,7 +355,7 @@ class Albumdata:
                     subprocess.run([editor, f.name])
                     f.seek(0)
                     temp_data = yaml.safe_load(f)
-                
+
                     erroneous_data = False
                     # TODO: more validation
                     if len(temp_data['tracks']) != len(data['tracks']):
@@ -310,13 +379,29 @@ class Albumdata:
                         data = temp_data
                     state = None
             elif state == 'f':
-                # TODO: Regenerate filenames, but we don't even generate
-                # them at all yet, so,
-                ...
+                # Regenerate filenames
+                print('Filenames generated:')
+                print('-' * max_width)
+                counter = 0
+                for track in data['tracks']:
+                    counter = counter + 1
+                    track['filename'] = cls._generate_filename(data, track, counter, config)
+                    print(track['filename'])
                 state = None
             elif state == 'r':
                 # We start the rip by returing Albumdata :D
-                return Albumdata(data)
+                print('Are you sure you want to rip this data:')
+                cls._print_albumdata(data)
+                print(' '.join("""\
+                        Ensure your filenames are correct!! If your
+                        terminal isn't wide enough, please cancel out
+                        and hit 'e' on the menu to confirm the filenames
+                        are correct.""".split()))
+                if input(' [yN]> ').strip() == 'y':
+                    return Albumdata(data)
+                else:
+                    print('Returning to menu')
+                    state = None
             elif state == 'a':
                 # Just abort, do nothing else
                 return None
@@ -420,12 +505,14 @@ class Albumdata:
             # Merge in the common data
             result.update(common_albumdata)
             # Template filenames for the songs
+            counter = 0
             for track in result['tracks']:
                 # If filenames exist, keep them (usually only previous
                 # rip data)
+                counter = counter + 1
                 if not 'filename' in track:
-                    # TODO: actually template them
-                    track['filename'] = 'TODO'
+                    track['filename'] = cls._generate_filename(
+                        result, track, counter, config)
 
         # Actually drop results that have the wrong amount of tracks
         results = [r for r in results if r not in dropped]
@@ -433,7 +520,7 @@ class Albumdata:
         selected = cls._select_albumdata(results, track_count)
 
         # Edit albumdata
-        return cls._edit_albumdata(selected, track_count, deps.editor)
+        return cls._edit_albumdata(selected, track_count, deps.editor, config)
 
     @property
     def ripdir(self):

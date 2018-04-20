@@ -19,7 +19,8 @@ testdata = {
                 {
                     'title': 'Test track',
                     'artist': 'Test Artist',
-                    'filename': '/home/user/Music/Test Artist/Test album/01 - Test track.mp3'
+                    'filename': '/home/user/Music/Test Artist/Test album/01 - Test track.mp3',
+                    'tracknumber': 1
                 }
             ]
     }
@@ -457,6 +458,7 @@ def test_from_user_input(monkeypatch):
     monkeypatch.setattr('cdparacord.albumdata.Albumdata._albumdata_from_musicbrainz', lambda *x: [])
     monkeypatch.setattr('cdparacord.albumdata.Albumdata._select_albumdata', lambda *x: None)
     monkeypatch.setattr('cdparacord.albumdata.Albumdata._edit_albumdata', lambda *x: None)
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._generate_filename', lambda *x: 'file')
 
     class FakeDeps:
         @property
@@ -468,7 +470,7 @@ def test_from_user_input(monkeypatch):
 
     class FakeConfig:
         def __init__(self):
-            self.dict = {'use_musicbrainz': True, 'reuse_albumdata': True}
+            self.dict = {'use_musicbrainz': True, 'reuse_albumdata': True }
 
         def get(self, a):
             return self.dict[a]
@@ -511,22 +513,47 @@ def test_edit_albumdata(monkeypatch):
     monkeypatch.setattr('subprocess.run', lambda *x, **y: None)
     monkeypatch.setattr('yaml.safe_dump', lambda *x, **y: None)
     monkeypatch.setattr('yaml.safe_load', lambda *x, **y: testdata)
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._generate_filename', lambda *x, **y: '')
 
     # Test with input None
-    albumdata.Albumdata._edit_albumdata(None, 1, '')
+    albumdata.Albumdata._edit_albumdata(None, 1, '', None)
     
     # Succesful edit & save
     seq = (i for i in ('e\n', 's\n'))
     monkeypatch.setattr('builtins.input', lambda *x: next(seq))
-    albumdata.Albumdata._edit_albumdata(testdata, 1, '')
+    albumdata.Albumdata._edit_albumdata(testdata, 1, '', None)
 
     # Succesful regen and rip
-    seq = (i for i in ('f\n', 'r\n'))
+    seq = (i for i in ('f\n', 'r\n', 'n\n', 'r\n', 'y\n'))
     monkeypatch.setattr('builtins.input', lambda *x: next(seq))
-    albumdata.Albumdata._edit_albumdata(testdata, 1, '')
+    albumdata.Albumdata._edit_albumdata(testdata, 1, '', None)
 
     # Unsuccesful edit and abandon (all things wrong in edit)
     monkeypatch.setattr('yaml.safe_load', lambda *x, **y: testdata_wrong)
     seq = (i for i in ('e\n', 'a\n'))
     monkeypatch.setattr('builtins.input', lambda *x: next(seq))
-    albumdata.Albumdata._edit_albumdata(testdata, 1, '')
+    albumdata.Albumdata._edit_albumdata(testdata, 1, '', None)
+
+
+def test_generate_filename(monkeypatch):
+    """Test generating filenames with various filters."""
+    class FakeConfig:
+        def __init__(self):
+            self.dict = {'safetyfilter': 'ascii', 'target_template': '$track'}
+
+        def get(self, a):
+            return self.dict[a]
+
+    config = FakeConfig()
+    monkeypatch.setitem(testdata['tracks'][0], 'title', '!äbc/de')
+    config.dict['safetyfilter'] = 'ascii'
+    assert '!bc-de' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
+    config.dict['safetyfilter'] = 'windows1252'
+    assert '!äbc-de' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
+    config.dict['safetyfilter'] = 'unicode_letternumber'
+    assert 'äbcde' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
+
+    # Test that it fails when we given an invalid filter
+    config.dict['safetyfilter'] = 'fake and not real'
+    with pytest.raises(albumdata.AlbumdataError):
+        albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)

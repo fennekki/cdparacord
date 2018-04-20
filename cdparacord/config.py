@@ -64,6 +64,12 @@ class Config:
         # well... You can always configure this option.
         'editor': os.environ.get('EDITOR', 'vim'),
         # How to safety filter data to be put in filenames.
+        # NOTE: All of these filters *discard any characters that don't
+        # pass the filter*! Note also that these are not sequentially
+        # more or less restrictive ones: For instance,
+        # unicode_letternumber removes *all* punctuation, even when
+        # other filters would allow it. This filter may be redesigned,
+        # however.
         # Options:
         # ascii - only allow 7-bit ASCII.
         # windows1252 - only allow valid Windows-1252 characters.
@@ -81,7 +87,7 @@ class Config:
         #
         # The filter cannot be completely disabled, because some
         # characters are never allowed in paths.
-        'safetyfilter': 'unicode_letternumber',
+        'safetyfilter': 'remove_restricted',
         # Whether to lookup stuff from MusicBrainz by default
         'use_musicbrainz': True,
         # If album data exists, whether to use it by default

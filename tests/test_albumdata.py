@@ -4,8 +4,8 @@ import pytest
 import contextlib
 import copy
 import io
+import os
 import yaml
-from cdparacord import albumdata
 
 
 testdata = {
@@ -159,8 +159,15 @@ testdata_disc_result = {
     }
 }
 
+@pytest.fixture
+def albumdata(monkeypatch):
+    monkeypatch.setitem(os.environ, 'HOME', '/home/User/')
+    monkeypatch.setitem(os.environ, 'XDG_MUSIC_DIR', '/home/User/Music')
+    from cdparacord import albumdata as a
+    yield a
 
-def test_cdstub_result(monkeypatch):
+
+def test_cdstub_result(monkeypatch, albumdata):
     """Test that cdstub result is processed correctly."""
     # Exercise both paths
     monkeypatch.setattr('musicbrainzngs.get_releases_by_discid',
@@ -182,7 +189,7 @@ def test_cdstub_result(monkeypatch):
     assert a['tracks'][0]['artist'] == 'Test Artist'
 
 
-def test_disc_result(monkeypatch):
+def test_disc_result(monkeypatch, albumdata):
     """Test that disc result is processed correctly."""
     monkeypatch.setattr('musicbrainzngs.get_releases_by_discid',
         lambda x, includes: testdata_disc_result)
@@ -196,7 +203,7 @@ def test_disc_result(monkeypatch):
     assert a['tracks'][0]['artist'] == 'Test Artist'
 
 
-def test_initialise_track():
+def test_initialise_track(albumdata):
     """Test that track is correctly initialised."""
     t = albumdata.Track(testdata['tracks'][0])
     assert t.title == 'Test track'
@@ -204,20 +211,20 @@ def test_initialise_track():
     assert t.filename == '/home/user/Music/Test Artist/Test album/01 - Test track.mp3'
 
 
-def test_albumdata_tracks():
+def test_albumdata_tracks(albumdata):
     """Test that tracks are correctly added to albumdata."""
     a = albumdata.Albumdata(testdata)
     assert a.tracks[0].title == 'Test track'
 
 
-def test_initialise_albumdata():
+def test_initialise_albumdata(albumdata):
     """Try to initialise albumdata correctly."""
     a = albumdata.Albumdata(testdata)
     assert a.ripdir == '/tmp/cdparacord/1000-test'
     assert a.track_count == 1
 
 
-def test_print_albumdata_80(capsys, monkeypatch):
+def test_print_albumdata_80(capsys, monkeypatch, albumdata):
     """Try to print albumdata to width 80 correctly."""
     expected = """\
 ================================================================================
@@ -238,7 +245,7 @@ Test track          Test Artist          /home/user/Music/Test Artist/Test [...]
     assert out == expected
 
 
-def test_print_albumdata_60(capsys, monkeypatch):
+def test_print_albumdata_60(capsys, monkeypatch, albumdata):
     """Try to print albumdata to width 60 correctly."""
     expected = """\
 ============================================================
@@ -258,7 +265,7 @@ Test track                     Test Artist
 
     assert out == expected
 
-def test_get_track_count(monkeypatch):
+def test_get_track_count(monkeypatch, albumdata):
     """Test track count getting with a fake cdparanoia output."""
     testdata = """\
 cdparanoia III release 10.2 (September 11, 2008)
@@ -282,7 +289,7 @@ TOTAL   1150 [00:11.50]        (audio only)
     monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
     assert albumdata.Albumdata._get_track_count('') == 1
 
-def test_select_albumdata(capsys, monkeypatch):
+def test_select_albumdata(capsys, monkeypatch, albumdata):
     """Test that the albumdata selection works as expected.
 
     The expected data is rather massive and needs to be updated
@@ -431,7 +438,7 @@ a: abort
         assert out == expected[test_index]
 
 
-def test_previous_result(monkeypatch):
+def test_previous_result(monkeypatch, albumdata):
     monkeypatch.setattr('os.path.isfile', lambda *x: True)
     monkeypatch.setattr('builtins.open', lambda *x: io.StringIO(yaml.safe_dump(testdata)))
 
@@ -442,7 +449,7 @@ def test_previous_result(monkeypatch):
     assert a['tracks'][0]['title'] == testdata['tracks'][0]['title']
 
 
-def test_invalid_previous_result(monkeypatch):
+def test_invalid_previous_result(monkeypatch, albumdata):
     monkeypatch.setattr('os.path.isfile', lambda *x: True)
     monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('[]'))
 
@@ -450,7 +457,7 @@ def test_invalid_previous_result(monkeypatch):
         a = albumdata.Albumdata._albumdata_from_previous_rip('')
 
 
-def test_from_user_input(monkeypatch):
+def test_from_user_input(monkeypatch, albumdata):
     monkeypatch.setattr('discid.read', lambda: 'test')
     monkeypatch.setattr('os.getuid', lambda: 1000)
     monkeypatch.setattr('cdparacord.albumdata.Albumdata._get_track_count', lambda *x: 1)
@@ -493,7 +500,7 @@ def test_from_user_input(monkeypatch):
     assert albumdata.Albumdata.from_user_input(deps, config) is None
 
 
-def test_edit_albumdata(monkeypatch):
+def test_edit_albumdata(monkeypatch, albumdata):
     """Test _edit_albumdata."""
     @contextlib.contextmanager
     def fake_tempfile(*x, **y):
@@ -535,7 +542,7 @@ def test_edit_albumdata(monkeypatch):
     albumdata.Albumdata._edit_albumdata(testdata, 1, '', None)
 
 
-def test_generate_filename(monkeypatch):
+def test_generate_filename(monkeypatch, albumdata):
     """Test generating filenames with various filters."""
     class FakeConfig:
         def __init__(self):

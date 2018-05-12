@@ -27,11 +27,34 @@ class Config:
     __default_config = {
         # Config for the encoder
         'encoder': {
-            'executable': 'lame',
-            'parameters': [
-                '-V2'
-            ]
+            'lame': {
+                'parameters': [
+                    '-V2'
+                ]
+            }
         },
+        # Tasks follow the format of encoder
+        # post_rip are run after an individual file has been ripped to a
+        # wav file. The actions are expected to operate on the raw audio
+        # data somehow. Can be used to add an additional encoder pass if
+        # two encodings are desired for some reason. Scheduled on a
+        # per-file basis.
+        'post_rip': [
+        ],
+        # post_encode tasks run after the encoder task (usually LAME) is
+        # run. Note that if you change your encoder, you might have to
+        # change whatever post-encode tasks you run if they depend on the
+        # previous file format! Scheduled on a per-file basis.
+        'post_encode': [
+        ],
+        # post_finished tasks run on all files once all files have been
+        # ripped and encoded. It is given the filenames of each file
+        # either individually, in which case it runs per-file, or in
+        # aggregate, in which case it is run once for all files. If both
+        # arguments are given, both will be expanded but the command will
+        # be run once for each file. Scheduled exactly once.
+        'post_finished': [
+        ],
         # Only path to be configured for cdparanoia
         'cdparanoia': 'cdparanoia',
         # How to construct the name of each file.

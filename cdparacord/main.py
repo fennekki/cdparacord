@@ -1,6 +1,7 @@
 import os
 import click
 import shutil
+import yaml
 from .albumdata import Albumdata
 from .config import Config
 from .dependency import Dependency
@@ -55,6 +56,10 @@ def main(begin_track, end_track, **options):
 
     # Create the ripdir if we got albumdata
     os.makedirs(albumdata.ripdir, 0o700, exist_ok=True)
+    # Save albumdata in a file
+    albumdata_file = os.path.join(albumdata.ripdir, 'albumdata.yaml')
+    with open(albumdata_file, 'w') as f:
+        yaml.safe_dump(albumdata.dict, f)
 
     # Choose which tracks to rip based on the command line.  The logic
     # is pretty straightforward: If we get neither argument, rip all. If

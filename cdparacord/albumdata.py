@@ -154,7 +154,6 @@ class Albumdata:
             albumdata['title'] = release['title']
             albumdata['date'] = release['date']
             albumdata['tracks'] = []
-            albumdata['artists'] = []
             albumartist = release['artist-credit-phrase']
             albumdata['albumartist'] = albumartist
 

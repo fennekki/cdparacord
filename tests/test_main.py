@@ -2,6 +2,7 @@
 
 import pytest
 import click.testing
+import io
 import cdparacord
 
 @pytest.fixture
@@ -19,11 +20,15 @@ def mock_dependencies(monkeypatch):
     class Albumdata:
         def __init__(self):
             self.track_count = 1
-            self.ripdir = '/\0'
+            self.ripdir = '/tmp/oispa-kaljaa'
 
         @classmethod
         def from_user_input(cls, deps, config):
             return cls()
+
+        @property
+        def dict(self):
+            return {}
     monkeypatch.setattr('cdparacord.main.Albumdata', Albumdata)
 
     class Rip:
@@ -36,6 +41,7 @@ def mock_dependencies(monkeypatch):
 
     monkeypatch.setattr('shutil.rmtree', lambda x: True)
     monkeypatch.setattr('os.makedirs', lambda x, y, exist_ok: True)
+    monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('{}'))
 
 
 def test_main(mock_dependencies):

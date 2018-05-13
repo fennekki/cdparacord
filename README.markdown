@@ -8,6 +8,8 @@ cdparanoia and LAME but is slowly accumulating more features
 
 ## Usage
 
+NOTE: OUT OF DATE
+
 ```
 cdparacord [ start-track [ end-track ] ]
 ```

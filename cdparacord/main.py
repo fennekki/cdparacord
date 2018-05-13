@@ -1,115 +1,99 @@
 import os
-import sys
-import asyncio
-
-from tempfile import TemporaryDirectory
-from .appinfo import __version__, __url__
-from .albumdata import get_final_albumdata, find_cdparanoia,\
-        ParanoiaError
-from .encode import rip_encode_and_tag
-from .utils import sanitise_filename, find_executable
-
-
-class LameError(Exception):
-    pass
+import click
+import shutil
+import yaml
+from .albumdata import Albumdata
+from .config import Config
+from .dependency import Dependency
+from .error import CdparacordError
+from .rip import Rip
 
 
-def find_lame():
-    return find_executable("lame", LameError)
+@click.command()
+@click.argument('begin_track', type=int, required=False)
+@click.argument('end_track', type=int, required=False)
+@click.option('--keep-ripdir/--no-keep-ripdir', '-r/-R', default=None,
+    help="""Keep temporary ripping directory after rip finishes.""")
+@click.option('--reuse-albumdata/--no-reuse-albumdata', '-a/-A',
+    default=None, help="""Use albumdata from a previous rip if present""")
+@click.option('--use-musicbrainz/--no-use-musicbrainz', '-m/-M',
+    'use_musicbrainz', default=None, help="""Fetch albumdata from MuzicBrainz
+    if available""")
+@click.option('--continue', '-c', 'continue_rip', is_flag=True, default=False,
+    help="""Continue rip from existing ripdir if ripdir is present (By default
+    the rip is restarted)""")
+def main(begin_track, end_track, **options):
+    """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 
+    If only BEGIN_TRACK is specified, only the specified track will be
+    ripped. If both BEGIN_TRACK and END_TRACK are specified, the range
+    starting from BEGIN_TRACK and ending at END_TRACK will be ripped. If
+    neither is specified, the whole CD will be ripped.
 
-def main(args):
-    lame = find_lame()
+    Cdparacord creates a temporary directory under /tmp, runs cdparanoia
+    to rip discs into it and copies the resulting encoded files to the
+    target directory configured in the configuration file.
 
-    final = get_final_albumdata()
-    # TODO don't hardcode this I guess
-    # Where the mp3s will be put
-    albumdir = "{home}/Music/{artist}/{album}/".format(
-        home=os.environ["HOME"],
-        artist=sanitise_filename(final["albumartist"]),
-        album=sanitise_filename(final["title"]))
+    See documentation for more.
+    """
+    # Read configuration
+    config = Config()
+    # Update does not add new configuration options (because the way new
+    # config is added is by adding new elements to the default config)
+    config.update(options)
 
-    # Create rip directory for this album
-    ripdir = '/tmp/cdparacord/{uid}-{discid}'.format(
-        uid=os.getuid(),
-        discid=final['discid'])
-    os.makedirs(ripdir, 0o700, exist_ok=True)
+    # Discover dependencies
+    deps = Dependency(config)
 
-    try:
-        os.makedirs(albumdir)
-    except FileExistsError:
-        print("Directory", albumdir, "already exists")
+    # Ensure ripping directory exists and set relatively restrictive
+    # permissions for it if it doesn't
+
+    # Read albumdata from user and MusicBrainz
+    albumdata = Albumdata.from_user_input(deps, config)
+    if albumdata is None:
+        print('User aborted albumdata selection.')
         return
-    loop = asyncio.get_event_loop()
-    tasks = []
 
-    if len(args) > 1:
-        start_track = int(args[1])
-        if len(args) > 2:
-            end_track = int(args[2])
-        else:
-            end_track = int(args[1])
-    else:
-        start_track = 1
-        end_track = final["track_count"]
+    # Create the ripdir if we got albumdata
+    os.makedirs(albumdata.ripdir, 0o700, exist_ok=True)
+    # Save albumdata in a file
+    albumdata_file = os.path.join(albumdata.ripdir, 'albumdata.yaml')
+    with open(albumdata_file, 'w') as f:
+        yaml.safe_dump(albumdata.dict, f)
 
-    print("Starting rip of tracks {}-{}".format(start_track, end_track))
-    # See if we're multi-artist. This is signaled by having
-    # different artists than the album artist for at least 1 track
-    multi_artist = False
-    for artist in final["artists"]:
-        if artist != final["albumartist"]:
-            print("Album is multi-artist, tagging album artist")
-            multi_artist = True
-            break
+    # Choose which tracks to rip based on the command line.  The logic
+    # is pretty straightforward: If we get neither argument, rip all. If
+    # we get one argument, rip only that track. Otherwise rip the
+    # inclusive range specified by the arguments.
+    if begin_track is None:
+        begin_track = 1
+        end_track = albumdata.track_count
+    elif end_track is None:
+        end_track = begin_track
 
-    for i in range(start_track, end_track + 1):
-        trackinfo = {}
-        if multi_artist:
-            trackinfo["albumartist"] = final["albumartist"]
-        trackinfo["album"] = final["title"]
-        trackinfo["artist"] = final["artists"][i - 1]
-        trackinfo["title"] = final["tracks"][i - 1]
-        trackinfo["date"] = final["date"]
-        trackinfo["tracknumber"] = i
-        tasks.append(asyncio.ensure_future(rip_encode_and_tag(
-            find_cdparanoia(), lame, trackinfo, albumdir, ripdir
-        ), loop=loop))
+    if not (1 <= begin_track <= albumdata.track_count):
+        raise CdparacordError(
+            'Begin track {} out of range (must be between 1 and {})'
+            .format(begin_track, albumdata.track_count))
 
-    # Ensure we've run all tasks before we're done
-    loop.run_until_complete(asyncio.gather(*tasks))
-    loop.close()
+    if not (begin_track <= end_track <= albumdata.track_count):
+        raise CdparacordError(
+            'End track out of range (Must be between begin track ({}) and {})'
+            .format(begin_track, albumdata.track_count))
 
-    # If we got here, we're done: Destroy the rip dir and cdparacorddir
-    # I think removedirs is kinda scary but it should only remove empty
-    # directories we're allowed to remove.
-    # TODO: Move this in its own function
-    # TODO: Yes, it's intentional the dir is kept if not empty, but it
-    # might need a try-except
-    for tracknumber in range(start_track, end_track + 1):
-        os.remove("{ripdir}/{tracknumber}.wav".format(
-            ripdir=ripdir,
-            tracknumber=tracknumber))
-    os.removedirs(ripdir)
-    print("Rip finished, rip directory removed.")
+    print('Starting rip: tracks {} - {}'.format(begin_track, end_track))
 
+    # Rip is the ripping and encoding process object
+    # It deals with the rip queue, encoding, tagging
+    rip = Rip(albumdata, deps, config, begin_track, end_track,
+            options['continue_rip'])
+    rip.rip_pipeline()
 
-def entrypoint_wrapper():
-    try:
-        main(sys.argv)
-    except IOError:
-        print("Error reading disc. Please make sure there's a music CD in your"
-              " drive before running cdparacord.")
-    except OSError:
-        print("The libdiscid library was not found. Please make sure discid"
-              " is installed before running cdparacord.")
-    except ParanoiaError:
-        print("A cdparanoia executable was not found. Please make sure"
-              " cdparanoia is installed before running cdparacord.")
-    except LameError:
-        print("A lame executable was not found. Please make sure"
-              " lame is installed before running cdparacord.")
+    # We have a flag to keep ripdir
+    if not options['keep_ripdir']:
+        print('Removing ripdir')
+        shutil.rmtree(albumdata.ripdir)
+    print('\n\nCdparacord finished.')
 
-
-if __name__ == "__main__":
-    entrypoint_wrapper()
+if __name__ == "__main__": # pragma: no cover
+    main()

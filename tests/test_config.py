@@ -11,6 +11,10 @@ import importlib
 import yaml
 
 
+# TODO: Instead of this mess, try to mock the entire xdg module. Its
+# problem is currently that all the code runs module-scope. Changing the
+# xdg module could work too.
+
 ### Fixtures ###
 
 
@@ -32,8 +36,7 @@ def _config_reload_yield_home(_monkeypatch_environment):
 
 @pytest.fixture
 def mock_temp_home(_config_reload_yield_home):
-    """Ensure a fake homedir exists.
-    """
+    """Ensure a fake homedir exists."""
     yield _config_reload_yield_home
 
 
@@ -133,12 +136,25 @@ def test_read_config_file(mock_config_file):
     expected_value = 'probably-not-a-real-editor'
 
     # Write them to the file
-    with open(config_file, "w") as f:
+    with open(config_file, 'w') as f:
         yaml.safe_dump({var_name: expected_value}, f)
 
     c = config.Config()
     # We should get the value in the file
     assert c.get(var_name) == expected_value
+
+
+def test_read_invalid_config(mock_config_file):
+    """Try to fail to read a valid configuration from file."""
+    from cdparacord import config
+
+    config_file = mock_config_file
+
+    with open(config_file, 'w') as f:
+        yaml.safe_dump(["wrong"], f)
+
+    with pytest.raises(config.ConfigError):
+        c = config.Config()
 
 
 def test_fail_to_open_config_file(mock_unreadable_config_file):
@@ -150,3 +166,23 @@ def test_fail_to_open_config_file(mock_unreadable_config_file):
     from cdparacord import config
     with pytest.raises(config.ConfigError):
         c = config.Config()
+
+
+def test_update_config_no_unknown_keys(mock_temp_home, capsys):
+    from cdparacord import config
+
+    c = config.Config()
+    c.update({'keep_ripdir': True}, quiet_ignore=False)
+
+    out, err = capsys.readouterr()
+    assert err == ""
+
+
+def test_update_config_unknown_keys(mock_temp_home, capsys):
+    from cdparacord import config
+
+    c = config.Config()
+    c.update({'invalid_key': True}, quiet_ignore=False)
+
+    out, err = capsys.readouterr()
+    assert err == "Warning: Unknown configuration key invalid_key\n"

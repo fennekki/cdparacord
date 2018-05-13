@@ -29,7 +29,7 @@ def mock_config_external():
                 # Maybe we should write a fake config file but there are
                 # Huge issues with mocking the config module...
                 if name == 'encoder':
-                    return {'executable': mockbin}
+                    return {mockbin: []}
                 return mockbin
         return MockConfig()
     return get_config

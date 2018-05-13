@@ -24,17 +24,17 @@ class Config:
     # the values in it, you have to replace them entirely. There is no
     # dict merge. However, in many cases, it should not be an issue, and
     # the feature can be added if necessary for some reason.
-    # Input file is {one_file}, output file is {out_file}. Other file
+    # Input file is ${one_file}, output file is ${out_file}. Other file
     # references cannot be currently accessed but they would be
-    # {all_files}.
+    # ${all_files}.
     __default_config = {
         # Config for the encoder
         'encoder': {
             'lame': {
                 'parameters': [
                     '-V2',
-                    '{one_file}',
-                    '{out_file}'
+                    '${one_file}',
+                    '${out_file}'
                 ]
             }
         },
@@ -58,8 +58,12 @@ class Config:
         # in aggregate, in which case it is run once for all files. If
         # both arguments are given, both will be expanded but the
         # command will be run once for each file. Scheduled exactly
-        # once. NOTE: currently we try to find {one_file} just by naive
+        # once. NOTE: currently we try to find ${one_file} just by naive
         # string search so hope you didn't need that in your paths.
+        # NOTE: ${all_files} is really hacky and probably won't work
+        # unless it's the only thing in its parameter. Which should make
+        # sense considering they're all separate parameters (this isn't
+        # shell, spaces aren't separators)
         'post_finished': [
         ],
         # Only path to be configured for cdparanoia

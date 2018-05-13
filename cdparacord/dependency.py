@@ -42,7 +42,7 @@ class Dependency:
 
         # Find the executables
         self._encoder = self._find_executable(
-            self._config.get('encoder')['executable'])
+            list(self._config.get('encoder').keys())[0])
         self._editor = self._find_executable(self._config.get('editor'))
         self._cdparanoia = self._find_executable(
             self._config.get('cdparanoia'))

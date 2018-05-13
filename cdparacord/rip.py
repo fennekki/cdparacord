@@ -1,5 +1,10 @@
 import asyncio
+import mutagen
+import mutagen.easyid3
+import os
+import os.path
 import shutil
+import string
 from .error import CdparacordError
 
 
@@ -27,7 +32,7 @@ class Rip:
         # so we can move them to the target dir
         self._tagged_files = {}
 
-    async def _arg_expand(task_args, one_file, *,
+    def _arg_expand(self, task_args, one_file, *,
             all_files=None, out_file=None):
         """Expand placeholders in task arguments.
 
@@ -35,27 +40,34 @@ class Rip:
         substituted. Otherwise it won't. Same for out_file.
         """
         final_args = []
+        placeholder = '<ALLFILES_PLACEHOLDER>'
         for arg in task_args:
             template = string.Template(arg)
             subs = {'one_file': one_file}
             if all_files is not None:
-                subs['all_files'] = all_files
+                subs['all_files'] = placeholder
             if out_file is not None:
                 subs['out_file'] = out_file
 
-            final_args.append(template.substitute(subs))
+            # If all_files is used just dump files into args
+            # It's not an "actual" template thing. Because reasons.
+            res = template.substitute(subs)
+            if res == placeholder:
+                final_args.extend(all_files)
+            else:
+                final_args.append(res)
         return final_args
 
     async def _tag_track(self, track, temp_encoded):
         """Tag track and plop it in the dict."""
         try:
-            audiofile = mutagen.easyid3.EasyID3(filename)
+            audiofile = mutagen.easyid3.EasyID3(temp_encoded)
         except:
-            audiofile = mutagen.File(filename, easy=True)
+            audiofile = mutagen.File(temp_encoded, easy=True)
             audiofile.add_tags()
 
         if (track.artist != self._albumdata.albumartist
-                or config.get('always_tag_albumartist')):
+                or self._config.get('always_tag_albumartist')):
             # We only tag albumartist Sometimes
             audiofile['albumartist'] = self._albumdata.albumartist
 
@@ -63,7 +75,7 @@ class Rip:
         audiofile['artist'] = track.artist
         audiofile['album'] = self._albumdata.title
         audiofile['title'] = track.title
-        audiofile['tracknumber'] = track.tracknumber
+        audiofile['tracknumber'] = str(track.tracknumber)
         audiofile['date'] = self._albumdata.date
 
         audiofile.save()
@@ -78,9 +90,9 @@ class Rip:
             self._albumdata.ripdir,
             '{tracknumber}{ext}'.format(
                 tracknumber=track.tracknumber,
-                ext=os.path.splitext(track.filename[1])))
+                ext=os.path.splitext(track.filename)[1]))
         encoder = self._config.get('encoder')
-        encoder_name = encoder.keys()[0]
+        encoder_name = list(encoder.keys())[0]
         encoder_args = self._arg_expand(
             encoder[encoder_name], temp_filename, out_file=temp_encoded)
 
@@ -94,7 +106,7 @@ class Rip:
         # Run post_encode
         for task in self._config.get('post_encode'):
             # Parsing the ansible-y format
-            task_name = task.keys()[0]
+            task_name = list(task.keys())[0]
             task_args = self._arg_expand(task[task_name], temp_encoded)
             # Create actual task after preprocessing args
             proc = await asyncio.create_subprocess_exec(
@@ -120,7 +132,7 @@ class Rip:
             '{tracknumber}.wav'.format(tracknumber=track.tracknumber))
 
         # Acquire lock on, essentially, the CD drive
-        async with rip_lock:
+        async with self._rip_lock:
             proc = await asyncio.create_subprocess_exec(
                 self._deps.cdparanoia,
                 '--',
@@ -135,7 +147,7 @@ class Rip:
         # Run post_rip tasks. No gather, we just await them
         for task in self._config.get('post_rip'):
             # Parsing the ansible-y format
-            task_name = task.keys()[0]
+            task_name = list(task.keys())[0]
             task_args = self._arg_expand(task[task_name], temp_filename)
             # Create actual task after preprocessing args
             proc = await asyncio.create_subprocess_exec(
@@ -147,7 +159,7 @@ class Rip:
                     task_name))
 
         # Always run after the previous due to awaits
-        await self._encode_track(track)
+        await self._encode_track(track, temp_filename)
 
     async def _post_finished(self):
         """Run post_finished tasks.
@@ -157,12 +169,13 @@ class Rip:
         """
         for task in self._config.get('post_finished'):
             # Parsing the ansible-y format
-            task_name = task.keys()[0]
+            task_name = list(task.keys())[0]
             per_file = False
             # See if we need to run this task per-file
             # TODO: Need better way to do this
             for arg in task[task_name]:
-                if '{one_file}' in arg:
+                if ('${one_file}' in arg
+                        or '$one_file' in arg):
                     per_file = True
                     break
 
@@ -171,9 +184,9 @@ class Rip:
                     task_args = self._arg_expand(
                         task[task_name],
                         one_file,
-                        all_files=self._tagged_files.keys())
+                        all_files=list(self._tagged_files.keys()))
                     # Create actual task after preprocessing args
-                    proc =  asyncio.create_subprocess_exec(
+                    proc = await asyncio.create_subprocess_exec(
                         task_name,
                         *task_args)
 
@@ -184,7 +197,7 @@ class Rip:
                 task_args = self._arg_expand(
                     task[task_name],
                     '/dev/null',
-                    all_files=self._tagged_files.keys())
+                    all_files=list(self._tagged_files.keys()))
                 # Create actual task after preprocessing args
                 proc = await asyncio.create_subprocess_exec(
                     task_name,
@@ -204,7 +217,7 @@ class Rip:
         # Schedule each track to be ripped
         for track in self._albumdata.tracks:
             if self._begin_track <= track.tracknumber <= self._end_track:
-                tasks.append(self._rip_track(track), loop=loop)
+                tasks.append(asyncio.ensure_future(self._rip_track(track)))
 
         # Wait for all to finish
         # NOTE: gather order is not in fact specified, so tracks may be
@@ -215,7 +228,11 @@ class Rip:
 
         # We're done with the tasks
         for one_file in self._tagged_files:
+            target_file = self._tagged_files[one_file]
+            # Ensure target dir exists
+            os.makedirs(os.path.dirname(target_file), exist_ok=True)
             # Copy files over
-            shutil.copy2(one_file, self._tagged_files[one_file])
+            shutil.copy2(one_file, target_file)
 
+        loop.close()
         # Done!

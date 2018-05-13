@@ -216,6 +216,9 @@ def test_albumdata_tracks(albumdata):
     """Test that tracks are correctly added to albumdata."""
     a = albumdata.Albumdata(testdata)
     assert a.tracks[0].title == 'Test track'
+    assert a.albumartist == 'Test Artist'
+    assert a.title == 'Test album'
+    assert a.date == '2018-01'
 
 
 def test_initialise_albumdata(albumdata):

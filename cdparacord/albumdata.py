@@ -481,7 +481,6 @@ class Albumdata:
             'title': '',
             'date': '',
             'albumartist': '',
-            'artists': '',
             'tracks': []
         }
 
@@ -543,6 +542,21 @@ class Albumdata:
         return self._tracks
 
     @property
+    def title(self):
+        """Return title."""
+        return self.dict['title']
+
+    @property
+    def date(self):
+        """Return date."""
+        return self.dict['date']
+
+    @property
+    def albumartist(self):
+        """Return albumartist."""
+        return self.dict['albumartist']
+
+    @property
     def dict(self):
         """Return dict this albumdata was generated from.
 
@@ -551,3 +565,4 @@ class Albumdata:
         want to change the properties, you need to create a new
         Albumdata object from the edited data.
         """
+        return self._dict

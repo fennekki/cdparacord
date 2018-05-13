@@ -138,7 +138,7 @@ def test_rip_track(monkeypatch, get_fake_config):
 
     async def fake_encode(self, track, filename):
         ...
-        
+
     monkeypatch.setattr('cdparacord.rip.Rip._encode_track', fake_encode)
     monkeypatch.setattr('os.rename', lambda x, y: True)
 
@@ -163,6 +163,66 @@ def test_rip_track(monkeypatch, get_fake_config):
     fake_config.fail_one = True
     with pytest.raises(rip.RipError):
         loop.run_until_complete(r._rip_track(fake_track))
+    fake_config.fail_one = False
+    loop.close()
+
+
+def test_encode_Track(monkeypatch, get_fake_config):
+    class FakeTrack:
+        def __init__(self):
+            self.tracknumber = 1
+
+        @property
+        def filename(self):
+            return '/tmp/oispa-kaljaa/final/test.mp3'
+
+    fake_track = FakeTrack()
+
+    class FakeAlbumdata:
+        @property
+        def tracks(self):
+            return [fake_track]
+
+        @property
+        def ripdir(self):
+            return '/tmp/oispa-kaljaa'
+
+    class FakeDeps:
+        def __init__(self):
+            self.encoder = 'echo'
+
+    fake_config = get_fake_config()
+    fake_deps = FakeDeps()
+    r = rip.Rip(FakeAlbumdata(), fake_deps, fake_config, 1, 1, True)
+
+    async def fake_tag(self, track, filename):
+        ...
+
+    monkeypatch.setattr('cdparacord.rip.Rip._tag_track', fake_tag)
+    monkeypatch.setattr('os.rename', lambda x, y: True)
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(r._encode_track(fake_track, fake_track.filename))
+    loop.close()
+
+    # Fail ripping track
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    fake_deps.encoder = 'false'
+    with pytest.raises(rip.RipError):
+        loop.run_until_complete(r._encode_track(fake_track, fake_track.filename))
+    fake_deps.encoder = 'echo'
+    loop.close()
+
+
+    # Fail running post-encode task
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    fake_config.fail_one = True
+    with pytest.raises(rip.RipError):
+        loop.run_until_complete(r._encode_track(fake_track, fake_track.filename))
+    fake_deps.encoder = 'echo'
     fake_config.fail_one = False
     loop.close()
 

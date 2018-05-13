@@ -27,6 +27,8 @@ def get_fake_config():
                     return {'false': ['${one_file}', '${out_file}']}
                 else:
                     return {'echo': ['${one_file}', '${out_file}']}
+            elif key == 'always_tag_albumartist':
+                return True
             else:
                 return ''
     yield FakeConfig
@@ -167,7 +169,7 @@ def test_rip_track(monkeypatch, get_fake_config):
     loop.close()
 
 
-def test_encode_Track(monkeypatch, get_fake_config):
+def test_encode_track(monkeypatch, get_fake_config):
     class FakeTrack:
         def __init__(self):
             self.tracknumber = 1
@@ -199,7 +201,6 @@ def test_encode_Track(monkeypatch, get_fake_config):
         ...
 
     monkeypatch.setattr('cdparacord.rip.Rip._tag_track', fake_tag)
-    monkeypatch.setattr('os.rename', lambda x, y: True)
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -226,3 +227,76 @@ def test_encode_Track(monkeypatch, get_fake_config):
     fake_config.fail_one = False
     loop.close()
 
+
+def test_tag_track(monkeypatch, get_fake_config):
+    class FakeTrack:
+        def __init__(self):
+            self.tracknumber = 1
+            self.artist = 'test'
+            self.title = 'test'
+
+        @property
+        def filename(self):
+            return '/tmp/oispa-kaljaa/final/test.mp3'
+
+    fake_track = FakeTrack()
+
+    class FakeAlbumdata:
+        @property
+        def tracks(self):
+            return [fake_track]
+
+        @property
+        def ripdir(self):
+            return '/tmp/oispa-kaljaa'
+
+        @property
+        def albumartist(self):
+            return 'test'
+
+        @property
+        def title(self):
+            return 'test'
+
+        @property
+        def date(self):
+            return '2018'
+
+    class FakeDeps:
+        def __init__(self):
+            self.encoder = 'echo'
+
+    fake_config = get_fake_config()
+    fake_deps = FakeDeps()
+    r = rip.Rip(FakeAlbumdata(), fake_deps, fake_config, 1, 1, True)
+
+    class FakeFile:
+        def __init__(*a, **b):
+            ...
+
+        def add_tags(self):
+            ...
+
+        def __setitem__(self, key, value):
+            ...
+
+        def __getitem__(self, key):
+            ...
+
+        def save(self):
+            ...
+
+    class FakeFile2(FakeFile):
+        def __init__(*a, **b):
+            raise ValueError('something')
+    
+    monkeypatch.setattr('mutagen.easyid3.EasyID3', FakeFile2)
+    monkeypatch.setattr('mutagen.File', FakeFile)
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(r._tag_track(fake_track, fake_track.filename))
+    loop.close()
+
+    # Assert we got the filename put in the dict
+    assert r._tagged_files[fake_track.filename] == fake_track.filename

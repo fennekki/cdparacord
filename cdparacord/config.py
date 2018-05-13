@@ -29,7 +29,9 @@ class Config:
         'encoder': {
             'lame': {
                 'parameters': [
-                    '-V2'
+                    '-V2',
+                    '{one_file}',
+                    '{out_file}'
                 ]
             }
         },
@@ -48,11 +50,12 @@ class Config:
         'post_encode': [
         ],
         # post_finished tasks run on all files once all files have been
-        # ripped and encoded. It is given the filenames of each file
-        # either individually, in which case it runs per-file, or in
-        # aggregate, in which case it is run once for all files. If both
-        # arguments are given, both will be expanded but the command will
-        # be run once for each file. Scheduled exactly once.
+        # ripped and encoded. It is given the filenames of each encoded
+        # file either individually, in which case it runs per-file, or
+        # in aggregate, in which case it is run once for all files. If
+        # both arguments are given, both will be expanded but the
+        # command will be run once for each file. Scheduled exactly
+        # once.
         'post_finished': [
         ],
         # Only path to be configured for cdparanoia

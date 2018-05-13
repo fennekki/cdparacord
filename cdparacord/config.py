@@ -24,6 +24,9 @@ class Config:
     # the values in it, you have to replace them entirely. There is no
     # dict merge. However, in many cases, it should not be an issue, and
     # the feature can be added if necessary for some reason.
+    # Input file is {one_file}, output file is {out_file}. Other file
+    # references cannot be currently accessed but they would be
+    # {all_files}.
     __default_config = {
         # Config for the encoder
         'encoder': {
@@ -55,7 +58,8 @@ class Config:
         # in aggregate, in which case it is run once for all files. If
         # both arguments are given, both will be expanded but the
         # command will be run once for each file. Scheduled exactly
-        # once.
+        # once. NOTE: currently we try to find {one_file} just by naive
+        # string search so hope you didn't need that in your paths.
         'post_finished': [
         ],
         # Only path to be configured for cdparanoia

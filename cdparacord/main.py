@@ -20,7 +20,7 @@ from .rip import Rip
     if available""")
 @click.option('--continue', '-c', 'continue_rip', is_flag=True, default=False,
     help="""Continue rip from existing ripdir if ripdir is present (By default
-    the rip is restarted) NOTE: DOES NOTHING YET""")
+    the rip is restarted)""")
 def main(begin_track, end_track, **options):
     """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 

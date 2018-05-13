@@ -124,12 +124,10 @@ class Rip:
         """Rip track and kick off encoder and post_rip."""
         # Create temp filename here before acquiring lock to minimise
         # time locked and because I want to
-        temp_filename = '{ripdir}/{tracknumber}.wav'.format(
-            ripdir=self._albumdata.ripdir,
-            tracknumber=track.tracknumber)
         temp_filename = os.path.join(
             self._albumdata.ripdir,
             '{tracknumber}.wav'.format(tracknumber=track.tracknumber))
+        temp_rip = '{temp_filename}.rip'.format(temp_filename=temp_filename)
 
         # Acquire lock on, essentially, the CD drive
         async with self._rip_lock:
@@ -137,18 +135,18 @@ class Rip:
                 self._deps.cdparanoia,
                 '--',
                 str(track.tracknumber),
-                temp_filename)
+                temp_rip)
 
             if await proc.wait() != 0:
                 raise RipError('Ripping track {} failed'.format(
-                    track.filename))
+                    track.tracknumber))
 
         # Rip lock released
         # Run post_rip tasks. No gather, we just await them
         for task in self._config.get('post_rip'):
             # Parsing the ansible-y format
             task_name = list(task.keys())[0]
-            task_args = self._arg_expand(task[task_name], temp_filename)
+            task_args = self._arg_expand(task[task_name], temp_rip)
             # Create actual task after preprocessing args
             proc = await asyncio.create_subprocess_exec(
                 task_name,
@@ -157,6 +155,11 @@ class Rip:
             if await proc.wait() != 0:
                 raise RipError('post_rip task {} failed'.format(
                     task_name))
+
+        # Move the file to the actual temp filename
+        # This means the presence of <number>.wav signifies both ripping
+        # and post_rip tasks were completed succesfully.
+        os.rename(temp_rip, temp_filename)
 
         # Always run after the previous due to awaits
         await self._encode_track(track, temp_filename)
@@ -215,8 +218,28 @@ class Rip:
         loop = asyncio.get_event_loop()
         tasks = []
         # Schedule each track to be ripped
+        # If we continue rip we might only schedule them to be encoded.
         for track in self._albumdata.tracks:
-            if self._begin_track <= track.tracknumber <= self._end_track:
+            if not (self._begin_track <= track.tracknumber <= self._end_track):
+                # Do not rip this track
+                continue
+            # File that would exist if rip for this track has
+            # succesfully completed
+            ripped_filename = os.path.join(
+                    self._albumdata.ripdir,
+                    '{}.wav'.format(track.tracknumber))
+            if os.path.isfile(ripped_filename) and self._continue_rip:
+                # We have the .wav - this signals that we have
+                # succesfully ripped this track and only need to
+                # encode it. If we've encoded it in the past, that
+                # is of no consequence - it's easier to treat only rip
+                # as the time-consuming part (and it's possible encoder
+                # settings have changed between rips, etc)
+                tasks.append(asyncio.ensure_future(
+                        self._encode_track(track, ripped_filename)))
+            else:
+                # Ripped file didn't exist or we're not continuing,
+                # schedule it to be ripped
                 tasks.append(asyncio.ensure_future(self._rip_track(track)))
 
         # Wait for all to finish

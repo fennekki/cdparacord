@@ -8,100 +8,61 @@ cdparanoia and LAME but is slowly accumulating more features
 
 ## Usage
 
-NOTE: OUT OF DATE
-
 ```
-cdparacord [ start-track [ end-track ] ]
+Usage: cdparacord [OPTIONS] [BEGIN_TRACK] [END_TRACK]
+
+  Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
+
+  If only BEGIN_TRACK is specified, only the specified track will be ripped.
+  If both BEGIN_TRACK and END_TRACK are specified, the range starting from
+  BEGIN_TRACK and ending at END_TRACK will be ripped. If neither is
+  specified, the whole CD will be ripped.
+
+  Cdparacord creates a temporary directory under /tmp, runs cdparanoia to
+  rip discs into it and copies the resulting encoded files to the target
+  directory configured in the configuration file.
+
+  See documentation for more.
+
+Options:
+  -r, --keep-ripdir / -R, --no-keep-ripdir
+                                  Keep temporary ripping directory after rip
+                                  finishes.
+  -a, --reuse-albumdata / -A, --no-reuse-albumdata
+                                  Use albumdata from a previous rip if present
+  -m, --use-musicbrainz / -M, --no-use-musicbrainz
+                                  Fetch albumdata from MuzicBrainz
+                                  if
+                                  available
+  -c, --continue                  Continue rip from existing ripdir if ripdir
+                                  is present (By default
+                                  the rip is restarted)
+  --help                          Show this message and exit.
 ```
-
-`start-track` is a digit from 1 to the number of tracks on the album. If
-`end-track` is specified, cdparacord will rip all tracks from `start-track` to
-`end-track`, otherwise it will only rip `start-track`. If neither is provided,
-cdparacord will rip the whole album.
-
-Cdparacord tries to fetch tags from MusicBrainz, and lets you pick whichever
-match you prefer. Once you pick your preferred pre-filled tags or no matches
-are found, you will be dropped to a text editor, and shown either pre-filled or
-empty tag information, in the following format:
-
-```
-ALBUMARTIST=Example Artist
-TITLE=Example Album
-DATE=1970-01-01
-TRACK_COUNT=2
-
-TRACK=Example Track
-ARTIST=Example Artist
-
-TRACK=Example Track 2
-ARTIST=Example Artist 2 feat. Example Artist 2
-```
-
-You should edit any fields you feel dissatisfied with. After closing the text
-editor, the rip will begin.
 
 ## Requirements
 
 Cdparacord requires at least Python 3.5 for async.
 
-It requires LAME (3.99.5 is known to work) for encoding (though custom encoder
-support is Coming, see Bug
-[#19](https://github.com/fennekki/cdparacord/issues/19)).
+By default it requires LAME for encoding. You can, however, customise the
+encoder as you see fit, though configuration documentation is currently scarce.
+See config.py for more.
 
 Additionally, libdiscid0 (0.6.2 known to work) is needed for extracting disc
 ids sent to MusicBrainz, and cdparanoia (10.2 known to work) for the actual
 ripping.
 
-The `cdparanoia` and `lame` executables need to be in your executable search
-path (You will be able to manually configure their locations later, see Bugs
-[#19](https://github.com/fennekki/cdparacord/issues/19),
-[#21](https://github.com/fennekki/cdparacord/issues/21)).
+You need the `cdparanoia` and encoder applications to either be in your
+executable search path or specified in the configuration with their full paths.
 
 There are no version checks built into `cdparacord`; If a specific version of
-LAME, libdiscid0 or cdparanoia causes it to malfunction, please file a bug.
+libdiscid0 or cdparanoia causes it to malfunction, please file a bug.
 
-## Known issues
+## Configuration
 
-Even if ripping individual tracks, the target directory existing will terminate
-the rip (Bugs [#9](https://github.com/fennekki/cdparacord/issues/9),
-[#10](https://github.com/fennekki/cdparacord/issues/10)).
+This documentation is work in progress. See config.py for extant documentation
+on configuration.
 
-The text editor is hardcoded to be vim (Bug
-[#4](https://github.com/fennekki/cdparacord/issues/4)).
-
-Albumartist tags are only created if one or more tracks have a different
-`ARTIST` value than the `ALBUMARTIST` value (Bug
-[#6](https://github.com/fennekki/cdparacord/issues/6)). This also applies to
-ripping less than the entire album, and whether or not said tracks are the
-tracks being ripped.
-
-You are not asked if you wish to proceed after closing the text editor (Bug
- [#1](https://github.com/fennekki/cdparacord/issues/1)). Additionally, if you
-input incorrect information or otherwise terminate the rip, you will lose the
-data you input (Bug [#3](https://github.com/fennekki/cdparacord/issues/3)). The
-rip cannot be restarted without removing the target directory (Bugs
-[#9](https://github.com/fennekki/cdparacord/issues/9),
-[#10](https://github.com/fennekki/cdparacord/issues/10)) and cannot be
-restarted with existing data (Bug
-[#11](https://github.com/fennekki/cdparacord/issues/11)). The rip cannot be
-resumed if terminated (Bug
-[#12](https://github.com/fennekki/cdparacord/issues/12)).
-
-The encoder is fixed to LAME with the quality parameter `-V2` (Bug
-[#19](https://github.com/fennekki/cdparacord/issues/19)).
-
-The directory and filename to put music in is fixed to
-`~/Music/$albumartist/$album/$trackno - $trackname.mp3` (Bug
-[#20](https://github.com/fennekki/cdparacord/issues/20)).
-
-Some "special" characters are ripped from the filenames but their treatment is
-inconsistent, the filtering is too little for filesystems that can't handle
-Unicode, and it might be too much for you (Bug
-[#16](https://github.com/fennekki/cdparacord/issues/16)).
-
-After cdparacord puts you in vim, there's no way to terminate cdparacord before
-it starts ripping other than inputting erroneous data (which you will
-subsequently lose) (Bug [#1](https://github.com/fennekki/cdparacord/issues/1)).
-
-The existence of cdparanoia is checked relatively late (Bug
-[#2](https://github.com/fennekki/cdparacord/issues/2)).
+The cdparacord configuration file is located at
+`$XDG_CONFIG_HOME/cdparacord/config.yaml`. `$XDG_CONFIG_HOME` is a standard
+configuration directory and defaults to `$HOME/.config`.

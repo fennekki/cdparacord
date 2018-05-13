@@ -209,6 +209,7 @@ def test_initialise_track(albumdata):
     assert t.title == 'Test track'
     assert t.artist == 'Test Artist'
     assert t.filename == '/home/user/Music/Test Artist/Test album/01 - Test track.mp3'
+    assert t.tracknumber == 1
 
 
 def test_albumdata_tracks(albumdata):

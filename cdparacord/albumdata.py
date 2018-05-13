@@ -41,6 +41,11 @@ class Track:
         """Print target filename for this track."""
         return self._filename
 
+    @property
+    def tracknumber(self):
+        """Print track number for this track."""
+        return self._tracknumber
+
 
 class Albumdata:
     def __init__(self, albumdata):

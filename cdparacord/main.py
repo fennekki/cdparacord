@@ -20,7 +20,7 @@ from .rip import Rip
     if available""")
 @click.option('--continue', '-c', 'continue_rip', is_flag=True, default=False,
     help="""Continue rip from existing ripdir if ripdir is present (By default
-    the rip is restarted)""")
+    the rip is restarted) NOTE: DOES NOTHING YET""")
 def main(begin_track, end_track, **options):
     """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 
@@ -66,12 +66,12 @@ def main(begin_track, end_track, **options):
     elif end_track is None:
         end_track = begin_track
 
-    if begin_track < 1 or begin_track > albumdata.track_count:
+    if not (1 <= begin_track <= albumdata.track_count):
         raise CdparacordError(
             'Begin track {} out of range (must be between 1 and {})'
             .format(begin_track, albumdata.track_count))
 
-    if end_track < begin_track or end_track > albumdata.track_count:
+    if not (begin_track <= end_track <= albumdata.track_count):
         raise CdparacordError(
             'End track out of range (Must be between begin track ({}) and {})'
             .format(begin_track, albumdata.track_count))

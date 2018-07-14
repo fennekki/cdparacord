@@ -185,4 +185,40 @@ def test_update_config_unknown_keys(mock_temp_home, capsys):
     c.update({'invalid_key': True}, quiet_ignore=False)
 
     out, err = capsys.readouterr()
-    assert err == "Warning: Unknown configuration key invalid_key\n"
+    assert err == 'Warning: Unknown configuration key invalid_key\n'
+
+def test_ensure_default_encoder_keys_are_strings(mock_temp_home):
+    """Test default encoder configuration."""
+    from cdparacord import config
+
+    c = config.Config()
+    
+    assert len(c.get('encoder')) == 1
+
+    for encoder in c.get('encoder'):
+        encoder_params = c.get('encoder')[encoder]
+        # If it's not a list something's wrong
+        assert type(encoder_params) is list
+
+        for item in encoder_params:
+            # And the params should be strings
+            assert type(item) is str
+
+def test_ensure_default_postaction_keys_are_strings(mock_temp_home):
+    """Test default encoder configuration."""
+    from cdparacord import config
+
+    c = config.Config()
+
+    for post_action in ('post_rip', 'post_encode', 'post_finished'):
+        for action in c.get(post_action):
+            assert len(action) == 1
+
+            for action_key in action:
+                action_params = action[action_key]
+                # If it's not a list something's wrong
+                assert type(action_params) is list
+
+                for item in action_params:
+                    # And the params should be strings
+                    assert type(item) is str

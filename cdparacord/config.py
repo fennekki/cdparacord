@@ -30,13 +30,11 @@ class Config:
     __default_config = {
         # Config for the encoder
         'encoder': {
-            'lame': {
-                'parameters': [
-                    '-V2',
-                    '${one_file}',
-                    '${out_file}'
-                ]
-            }
+            'lame': [
+                '-V2',
+                '${one_file}',
+                '${out_file}'
+            ]
         },
         # Tasks follow the format of encoder
         # post_rip are run after an individual file has been ripped to a

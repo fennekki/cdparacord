@@ -95,7 +95,7 @@ def test_get_cdparanoia(mock_external_encoder):
     assert deps.cdparanoia == mock_external_encoder.param
 
 def test_verify_action_params(mock_external_encoder):
-    """Ensure encoder parameter verification works."""
+    """Ensure encoder and post-action parameter verification works."""
 
     conf = mock_external_encoder
     deps = Dependency(conf)

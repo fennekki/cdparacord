@@ -568,3 +568,15 @@ def test_generate_filename(monkeypatch, albumdata):
     config.dict['safetyfilter'] = 'fake and not real'
     with pytest.raises(albumdata.AlbumdataError):
         albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
+
+def test_disc_result_no_date(monkeypatch, albumdata):
+    """Test that disc result is processed even when lacking date."""
+    monkeypatch.setattr('musicbrainzngs.get_releases_by_discid',
+        lambda x, includes: testdata_disc_result)
+
+    # Delete date, should still work
+    monkeypatch.delitem(testdata_disc_result['disc']['release-list'][0], 'date')
+
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')[0]
+
+    assert a['date'] == ''

@@ -152,7 +152,11 @@ class Albumdata:
 
             albumdata['source'] = 'MusicBrainz'
             albumdata['title'] = release['title']
-            albumdata['date'] = release['date']
+            # Sometimes albumdata doesn't seem to have date
+            try:
+                albumdata['date'] = release['date']
+            except KeyError:
+                albumdata['date'] = ''
             albumdata['tracks'] = []
             albumartist = release['artist-credit-phrase']
             albumdata['albumartist'] = albumartist

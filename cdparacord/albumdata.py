@@ -126,10 +126,9 @@ class Albumdata:
 
         albumdata['source'] = 'MusicBrainz'
         albumdata['title'] = cdstub['title']
-        if 'date' in cdstub:
-            albumdata['date'] = cdstub['date']
-        else:
-            albumdata['date'] = ''
+        # Sometimes cd stubs don't have date. We can just put an empty
+        # value there.
+        albumdata['date'] = cdstub.get('date', '')
         albumdata['albumartist'] = cdstub['artist']
         albumdata['tracks'] = []
 
@@ -152,11 +151,9 @@ class Albumdata:
 
             albumdata['source'] = 'MusicBrainz'
             albumdata['title'] = release['title']
-            # Sometimes albumdata doesn't seem to have date
-            try:
-                albumdata['date'] = release['date']
-            except KeyError:
-                albumdata['date'] = ''
+            # Sometimes albumdata doesn't seem to have date. In those
+            # cases, we can just put an empty value there.
+            albumdata['date'] = release.get('date', '')
             albumdata['tracks'] = []
             albumartist = release['artist-credit-phrase']
             albumdata['albumartist'] = albumartist

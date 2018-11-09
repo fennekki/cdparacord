@@ -321,6 +321,22 @@ TOTAL   1150 [00:11.50]        (audio only)
     monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
     assert albumdata.Albumdata._get_track_count('') == 1
 
+
+def test_get_no_track_count(monkeypatch, albumdata):
+    """Test track count getting with empty cdparanoia output."""
+    class FakeProcess:
+        def check_returncode(self):
+            pass
+        
+        @property
+        def stdout(self):
+            return ''
+
+    obj = FakeProcess()
+    monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
+    assert albumdata.Albumdata._get_track_count('') == None
+
+
 def test_select_albumdata(capsys, monkeypatch, albumdata):
     """Test that the albumdata selection works as expected.
 
@@ -537,6 +553,13 @@ def test_from_user_input(monkeypatch, albumdata):
     config.dict['use_musicbrainz'] = False
     config.dict['reuse_albumdata'] = False
     assert albumdata.Albumdata.from_user_input(deps, config) is None
+
+    # It's plausible that we would get None here
+    config.dict['use_musicbrainz'] = False
+    config.dict['reuse_albumdata'] = True
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._get_track_count', lambda *x: None)
+    with pytest.raises(albumdata.AlbumdataError):
+        albumdata.Albumdata.from_user_input(deps, config)
 
 
 def test_edit_albumdata(monkeypatch, albumdata):

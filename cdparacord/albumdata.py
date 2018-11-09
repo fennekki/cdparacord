@@ -460,6 +460,9 @@ class Albumdata:
 
         track_count = cls._get_track_count(deps.cdparanoia)
 
+        if track_count is None:
+            raise AlbumdataError('Could not figure out track count')
+
         # Data to be merged to the albumdata we select
         common_albumdata = {
             'discid': str(disc),

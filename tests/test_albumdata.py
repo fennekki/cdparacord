@@ -489,6 +489,13 @@ def test_invalid_previous_result(monkeypatch, albumdata):
         a = albumdata.Albumdata._albumdata_from_previous_rip('')
 
 
+def test_no_previous_result(monkeypatch, albumdata):
+    """Test that previous rip not existing works."""
+    monkeypatch.setattr('os.path.isfile', lambda *x: False)
+
+    a = albumdata.Albumdata._albumdata_from_previous_rip('')
+    assert a is None
+
 def test_from_user_input(monkeypatch, albumdata):
     monkeypatch.setattr('discid.read', lambda: 'test')
     monkeypatch.setattr('os.getuid', lambda: 1000)

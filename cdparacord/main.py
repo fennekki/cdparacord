@@ -22,6 +22,9 @@ from .rip import Rip
 @click.option('--continue', '-c', 'continue_rip', is_flag=True, default=False,
     help="""Continue rip from existing ripdir if ripdir is present (By default
     the rip is restarted)""")
+@click.option('--submit', 'submit_to_musicbrainz', is_flag=True, default=False,
+    help="""Ignore all other options and instead open the MusicBrainz
+    submission page.""")
 def main(begin_track, end_track, **options):
     """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 
@@ -45,8 +48,13 @@ def main(begin_track, end_track, **options):
     # Discover dependencies
     deps = Dependency(config)
 
-    # Ensure ripping directory exists and set relatively restrictive
-    # permissions for it if it doesn't
+    # We're done with dependencies so we know discid is there
+    if options['submit_to_musicbrainz']:
+        print('Submitting discid to MusicBrainz')
+        import discid
+        import webbrowser
+        webbrowser.open(discid.read().submission_url)
+        return
 
     # Read albumdata from user and MusicBrainz
     albumdata = Albumdata.from_user_input(deps, config)

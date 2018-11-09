@@ -16,6 +16,7 @@ coveralls = '>=1.5'
 coverage = '>=4.5'
 tox = '>=3.5'
 vulture = '>=1.0'
+pathlib2 = '>=2.3'
 "e1839a8" = {editable = true, path = "."}
 
 [requires]

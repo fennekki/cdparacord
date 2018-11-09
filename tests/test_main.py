@@ -43,6 +43,14 @@ def mock_dependencies(monkeypatch):
     monkeypatch.setattr('os.makedirs', lambda x, y, exist_ok: True)
     monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('{}'))
 
+    class FakeDisc:
+        @property
+        def submission_url(self):
+            return "fake_url:"
+
+    monkeypatch.setattr('discid.read', lambda *x: FakeDisc())
+    monkeypatch.setattr('webbrowser.open', lambda x: True)
+
 
 def test_main(mock_dependencies):
     """Test several valid inputs to main."""
@@ -51,6 +59,15 @@ def test_main(mock_dependencies):
     click.testing.CliRunner().invoke(main.main, catch_exceptions=False)
     click.testing.CliRunner().invoke(main.main, args=['1', '1'], catch_exceptions=False)
     click.testing.CliRunner().invoke(main.main, args=['--keep-ripdir'], catch_exceptions=False)
+
+
+def test_main_submit(mock_dependencies):
+    """Test that the submission code path isn't wonky."""
+    from cdparacord import main
+
+    click.testing.CliRunner().invoke(
+        main.main, args=['--submit'],
+        catch_exceptions=False)
 
 
 def test_main_begin_track_out_of_range(mock_dependencies):

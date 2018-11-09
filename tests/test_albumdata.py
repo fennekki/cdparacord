@@ -191,7 +191,8 @@ def test_cdstub_result(monkeypatch, albumdata):
 
 def test_disc_result(monkeypatch, albumdata):
     """Test that disc result is processed correctly."""
-    monkeypatch.setattr('musicbrainzngs.get_releases_by_discid',
+    monkeypatch.setattr(
+        'musicbrainzngs.get_releases_by_discid',
         lambda x, includes: testdata_disc_result)
 
     a = albumdata.Albumdata._albumdata_from_musicbrainz('test')[0]
@@ -201,6 +202,33 @@ def test_disc_result(monkeypatch, albumdata):
     assert a['date'] == '2018-01'
     assert a['tracks'][0]['title'] == 'Test track'
     assert a['tracks'][0]['artist'] == 'Test Artist'
+
+
+def test_musicbrainzerror_result(monkeypatch, albumdata):
+    """Test that getting no MusicBrainz result at all works."""
+    def fake_get_releases(*x, **y):
+        import musicbrainzngs
+        raise musicbrainzngs.MusicBrainzError("test")
+
+    monkeypatch.setattr(
+        'musicbrainzngs.get_releases_by_discid',
+        fake_get_releases)
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')
+    assert a == []
+
+
+def test_weird_nothing_result(monkeypatch, albumdata):
+    """Test a weird implausible MusicBrainz result.
+
+    Specifically, a case where we get neither cdstub nor disc which
+    shouldn't happen will hit its own branch that should be treated as
+    "no MusicBrainz result".
+    """
+    monkeypatch.setattr(
+        'musicbrainzngs.get_releases_by_discid',
+        lambda *x, **y: {})
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')
+    assert a == []
 
 
 def test_initialise_track(albumdata):

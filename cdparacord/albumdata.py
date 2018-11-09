@@ -181,8 +181,11 @@ class Albumdata:
                 return [cls._albumdata_from_cdstub(result['cdstub'])]
             elif 'disc' in result:
                 return cls._albumdata_from_disc(result['disc'])
-        except musicbrainzngs.MusicBrainzError:  # pragma: no cover
-            return []
+        except musicbrainzngs.MusicBrainzError:
+            pass
+        # If we hit the exception or there's *neither* cdstub *nor*
+        # disc, we get here.
+        return []
 
     @classmethod
     def _albumdata_from_previous_rip(cls, albumdata_file):

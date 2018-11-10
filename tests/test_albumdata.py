@@ -191,7 +191,8 @@ def test_cdstub_result(monkeypatch, albumdata):
 
 def test_disc_result(monkeypatch, albumdata):
     """Test that disc result is processed correctly."""
-    monkeypatch.setattr('musicbrainzngs.get_releases_by_discid',
+    monkeypatch.setattr(
+        'musicbrainzngs.get_releases_by_discid',
         lambda x, includes: testdata_disc_result)
 
     a = albumdata.Albumdata._albumdata_from_musicbrainz('test')[0]
@@ -201,6 +202,33 @@ def test_disc_result(monkeypatch, albumdata):
     assert a['date'] == '2018-01'
     assert a['tracks'][0]['title'] == 'Test track'
     assert a['tracks'][0]['artist'] == 'Test Artist'
+
+
+def test_musicbrainzerror_result(monkeypatch, albumdata):
+    """Test that getting no MusicBrainz result at all works."""
+    def fake_get_releases(*x, **y):
+        import musicbrainzngs
+        raise musicbrainzngs.MusicBrainzError("test")
+
+    monkeypatch.setattr(
+        'musicbrainzngs.get_releases_by_discid',
+        fake_get_releases)
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')
+    assert a == []
+
+
+def test_weird_nothing_result(monkeypatch, albumdata):
+    """Test a weird implausible MusicBrainz result.
+
+    Specifically, a case where we get neither cdstub nor disc which
+    shouldn't happen will hit its own branch that should be treated as
+    "no MusicBrainz result".
+    """
+    monkeypatch.setattr(
+        'musicbrainzngs.get_releases_by_discid',
+        lambda *x, **y: {})
+    a = albumdata.Albumdata._albumdata_from_musicbrainz('test')
+    assert a == []
 
 
 def test_initialise_track(albumdata):
@@ -292,6 +320,22 @@ TOTAL   1150 [00:11.50]        (audio only)
     obj = FakeProcess()
     monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
     assert albumdata.Albumdata._get_track_count('') == 1
+
+
+def test_get_no_track_count(monkeypatch, albumdata):
+    """Test track count getting with empty cdparanoia output."""
+    class FakeProcess:
+        def check_returncode(self):
+            pass
+        
+        @property
+        def stdout(self):
+            return ''
+
+    obj = FakeProcess()
+    monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
+    assert albumdata.Albumdata._get_track_count('') == None
+
 
 def test_select_albumdata(capsys, monkeypatch, albumdata):
     """Test that the albumdata selection works as expected.
@@ -436,7 +480,7 @@ a: abort
             except StopIteration:
                 return 
         monkeypatch.setattr('builtins.input', fake_input)
-        albumdata.Albumdata._select_albumdata([testdata], 1)
+        albumdata.Albumdata._select_albumdata([testdata])
         out, err = capsys.readouterr()
 
         assert out == expected[test_index]
@@ -460,6 +504,13 @@ def test_invalid_previous_result(monkeypatch, albumdata):
     with pytest.raises(albumdata.AlbumdataError):
         a = albumdata.Albumdata._albumdata_from_previous_rip('')
 
+
+def test_no_previous_result(monkeypatch, albumdata):
+    """Test that previous rip not existing works."""
+    monkeypatch.setattr('os.path.isfile', lambda *x: False)
+
+    a = albumdata.Albumdata._albumdata_from_previous_rip('')
+    assert a is None
 
 def test_from_user_input(monkeypatch, albumdata):
     monkeypatch.setattr('discid.read', lambda: 'test')
@@ -495,6 +546,10 @@ def test_from_user_input(monkeypatch, albumdata):
     config.dict['reuse_albumdata'] = True
     assert albumdata.Albumdata.from_user_input(deps, config) is None
 
+    # Same config but this time previous albumdata is None
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._albumdata_from_previous_rip', lambda *x: None)
+    assert albumdata.Albumdata.from_user_input(deps, config) is None
+
     config.dict['use_musicbrainz'] = True
     config.dict['reuse_albumdata'] = False
     assert albumdata.Albumdata.from_user_input(deps, config) is None
@@ -502,6 +557,13 @@ def test_from_user_input(monkeypatch, albumdata):
     config.dict['use_musicbrainz'] = False
     config.dict['reuse_albumdata'] = False
     assert albumdata.Albumdata.from_user_input(deps, config) is None
+
+    # It's plausible that we would get None here
+    config.dict['use_musicbrainz'] = False
+    config.dict['reuse_albumdata'] = True
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._get_track_count', lambda *x: None)
+    with pytest.raises(albumdata.AlbumdataError):
+        albumdata.Albumdata.from_user_input(deps, config)
 
 
 def test_edit_albumdata(monkeypatch, albumdata):
@@ -563,6 +625,8 @@ def test_generate_filename(monkeypatch, albumdata):
     assert '!äbc-de' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
     config.dict['safetyfilter'] = 'unicode_letternumber'
     assert 'äbcde' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
+    config.dict['safetyfilter'] = 'remove_restricted'
+    assert '!äbc-de' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
 
     # Test that it fails when we given an invalid filter
     config.dict['safetyfilter'] = 'fake and not real'

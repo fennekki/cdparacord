@@ -18,7 +18,7 @@ install:
 
 script:
   - pipenv run tox
-  - pipenv run coverage run -m py.test
+  - pipenv run coverage run --branch -m py.test
   - pipenv run coverage report -m
 
 after_success:

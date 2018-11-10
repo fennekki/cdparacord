@@ -8,6 +8,7 @@ def get_fake_config():
         def __init__(self):
             self.fail_one = False
             self.fail_all = False
+            self.always_tag_albumartist = False
 
         def get(self, key):
             if key in ('post_rip', 'post_encode'):
@@ -28,7 +29,7 @@ def get_fake_config():
                 else:
                     return {'echo': ['${one_file}', '${out_file}']}
             elif key == 'always_tag_albumartist':
-                return True
+                return self.always_tag_albumartist
             else:
                 return ''
     yield FakeConfig
@@ -293,10 +294,13 @@ def test_tag_track(monkeypatch, get_fake_config):
     monkeypatch.setattr('mutagen.easyid3.EasyID3', FakeFile2)
     monkeypatch.setattr('mutagen.File', FakeFile)
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(r._tag_track(fake_track, fake_track.filename))
-    loop.close()
+    # Both skip and don't skip the albumartist branch
+    for always_tag in (True, False):
+        fake_config.always_tag_albumartist = always_tag
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(r._tag_track(fake_track, fake_track.filename))
+        loop.close()
 
-    # Assert we got the filename put in the dict
-    assert r._tagged_files[fake_track.filename] == fake_track.filename
+        # Assert we got the filename put in the dict
+        assert r._tagged_files[fake_track.filename] == fake_track.filename

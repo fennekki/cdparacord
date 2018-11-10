@@ -181,8 +181,11 @@ class Albumdata:
                 return [cls._albumdata_from_cdstub(result['cdstub'])]
             elif 'disc' in result:
                 return cls._albumdata_from_disc(result['disc'])
-        except musicbrainzngs.MusicBrainzError:  # pragma: no cover
-            return []
+        except musicbrainzngs.MusicBrainzError:
+            pass
+        # If we hit the exception or there's *neither* cdstub *nor*
+        # disc, we get here.
+        return []
 
     @classmethod
     def _albumdata_from_previous_rip(cls, albumdata_file):
@@ -223,19 +226,24 @@ class Albumdata:
                 extract_next = True
 
     @classmethod
-    def _select_albumdata(cls, results, track_count):
+    def _select_albumdata(cls, results):
         max_width, max_height = shutil.get_terminal_size()
 
         state = 0
         while True:
             # State 0 is the first screen, other ones are the options
+
+            # There should be no way for state to escape these
+            # constraints.
+            assert 0 <= state <= len(results)
+
             if state == 0:
                 print('=' * max_width)
                 print('Albumdata sources available:')
                 for i in range(1, len(results) + 1):
                     print('{}) {}'.format(i, results[i - 1]['source']))
                 print('=' * max_width)
-            elif state <= track_count:
+            else:
                 print('Source {}: {}'.format(
                     state, results[state - 1]['source']))
                 cls._print_albumdata(results[state - 1])
@@ -309,8 +317,13 @@ class Albumdata:
                 s[key] = ''.join(
                     c for c in s[key] if unicodedata.category(c) in
                         ('Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nd', 'Nl', 'No'))
-            elif safetyfilter != 'remove_restricted':
-                # This is the only valid option if it's nothing else
+            elif safetyfilter == 'remove_restricted':
+                # This is the only valid option if it's nothing else. We
+                # can safely pass because this filter is always applied
+                # at the end.
+                pass
+            else:
+                # Raise an error if *no* valid filter is found
                 raise AlbumdataError(
                     'Invalid safety filter {}'.format(safetyfilter))
 
@@ -457,6 +470,9 @@ class Albumdata:
 
         track_count = cls._get_track_count(deps.cdparanoia)
 
+        if track_count is None:
+            raise AlbumdataError('Could not figure out track count')
+
         # Data to be merged to the albumdata we select
         common_albumdata = {
             'discid': str(disc),
@@ -521,7 +537,7 @@ class Albumdata:
         # Actually drop results that have the wrong amount of tracks
         results = [r for r in results if r not in dropped]
 
-        selected = cls._select_albumdata(results, track_count)
+        selected = cls._select_albumdata(results)
 
         # Edit albumdata
         return cls._edit_albumdata(selected, track_count, deps.editor, config)

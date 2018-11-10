@@ -187,6 +187,17 @@ def test_update_config_unknown_keys(mock_temp_home, capsys):
     out, err = capsys.readouterr()
     assert err == 'Warning: Unknown configuration key invalid_key\n'
 
+
+def test_update_config_with_none(mock_temp_home, capsys):
+    from cdparacord import config
+
+    c = config.Config()
+    c.update({'keep_ripdir': None}, quiet_ignore=False)
+
+    out, err = capsys.readouterr()
+    assert err == ""
+
+
 def test_ensure_default_encoder_keys_are_strings(mock_temp_home):
     """Test default encoder configuration."""
     from cdparacord import config

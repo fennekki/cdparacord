@@ -621,6 +621,8 @@ def test_generate_filename(monkeypatch, albumdata):
     assert '!äbc-de' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
     config.dict['safetyfilter'] = 'unicode_letternumber'
     assert 'äbcde' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
+    config.dict['safetyfilter'] = 'remove_restricted'
+    assert '!äbc-de' == albumdata.Albumdata._generate_filename(testdata, testdata['tracks'][0], 1, config)
 
     # Test that it fails when we given an invalid filter
     config.dict['safetyfilter'] = 'fake and not real'

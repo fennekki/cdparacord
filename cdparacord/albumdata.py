@@ -317,8 +317,13 @@ class Albumdata:
                 s[key] = ''.join(
                     c for c in s[key] if unicodedata.category(c) in
                         ('Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nd', 'Nl', 'No'))
-            elif safetyfilter != 'remove_restricted':
-                # This is the only valid option if it's nothing else
+            elif safetyfilter == 'remove_restricted':
+                # This is the only valid option if it's nothing else. We
+                # can safely pass because this filter is always applied
+                # at the end.
+                pass
+            else:
+                # Raise an error if *no* valid filter is found
                 raise AlbumdataError(
                     'Invalid safety filter {}'.format(safetyfilter))
 

@@ -546,6 +546,10 @@ def test_from_user_input(monkeypatch, albumdata):
     config.dict['reuse_albumdata'] = True
     assert albumdata.Albumdata.from_user_input(deps, config) is None
 
+    # Same config but this time previous albumdata is None
+    monkeypatch.setattr('cdparacord.albumdata.Albumdata._albumdata_from_previous_rip', lambda *x: None)
+    assert albumdata.Albumdata.from_user_input(deps, config) is None
+
     config.dict['use_musicbrainz'] = True
     config.dict['reuse_albumdata'] = False
     assert albumdata.Albumdata.from_user_input(deps, config) is None

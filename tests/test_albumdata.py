@@ -480,7 +480,7 @@ a: abort
             except StopIteration:
                 return 
         monkeypatch.setattr('builtins.input', fake_input)
-        albumdata.Albumdata._select_albumdata([testdata], 1)
+        albumdata.Albumdata._select_albumdata([testdata])
         out, err = capsys.readouterr()
 
         assert out == expected[test_index]

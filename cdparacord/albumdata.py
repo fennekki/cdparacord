@@ -226,19 +226,24 @@ class Albumdata:
                 extract_next = True
 
     @classmethod
-    def _select_albumdata(cls, results, track_count):
+    def _select_albumdata(cls, results):
         max_width, max_height = shutil.get_terminal_size()
 
         state = 0
         while True:
             # State 0 is the first screen, other ones are the options
+
+            # There should be no way for state to escape these
+            # constraints.
+            assert 0 <= state <= len(results)
+
             if state == 0:
                 print('=' * max_width)
                 print('Albumdata sources available:')
                 for i in range(1, len(results) + 1):
                     print('{}) {}'.format(i, results[i - 1]['source']))
                 print('=' * max_width)
-            elif state <= track_count:
+            else:
                 print('Source {}: {}'.format(
                     state, results[state - 1]['source']))
                 cls._print_albumdata(results[state - 1])
@@ -527,7 +532,7 @@ class Albumdata:
         # Actually drop results that have the wrong amount of tracks
         results = [r for r in results if r not in dropped]
 
-        selected = cls._select_albumdata(results, track_count)
+        selected = cls._select_albumdata(results)
 
         # Edit albumdata
         return cls._edit_albumdata(selected, track_count, deps.editor, config)

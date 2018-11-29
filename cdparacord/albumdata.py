@@ -124,13 +124,15 @@ class Albumdata:
         """Convert MusicBrainz cdstub to albumdata."""
         albumdata = {}
 
-        albumdata['source'] = 'MusicBrainz'
+        albumdata['source'] = 'MusicBrainz CD stub'
         albumdata['title'] = cdstub['title']
         # Sometimes cd stubs don't have date. We can just put an empty
         # value there.
         albumdata['date'] = cdstub.get('date', '')
         albumdata['albumartist'] = cdstub['artist']
         albumdata['tracks'] = []
+        albumdata['cd_number'] = 1
+        albumdata['cd_count'] = 1
 
         for track in cdstub['track-list']:
             albumdata['tracks'].append({
@@ -147,26 +149,30 @@ class Albumdata:
 
         releases = disc['release-list']
         for release in releases:
-            albumdata = {}
+            cd_number = 0
+            for medium in release['medium-list']:
+                cd_number +=1
+                albumdata = {}
 
-            albumdata['source'] = 'MusicBrainz'
-            albumdata['title'] = release['title']
-            # Sometimes albumdata doesn't seem to have date. In those
-            # cases, we can just put an empty value there.
-            albumdata['date'] = release.get('date', '')
-            albumdata['tracks'] = []
-            albumartist = release['artist-credit-phrase']
-            albumdata['albumartist'] = albumartist
+                albumdata['source'] = 'MusicBrainz'
+                albumdata['title'] = release['title']
+                # Sometimes albumdata doesn't seem to have date. In those
+                # cases, we can just put an empty value there.
+                albumdata['date'] = release.get('date', '')
+                albumdata['tracks'] = []
+                albumartist = release['artist-credit-phrase']
+                albumdata['albumartist'] = albumartist
+                albumdata['cd_number'] = cd_number
+                albumdata['cd_count'] = len(release['medium-list'])
 
-            medium = release['medium-list'][0]
-            for track in medium['track-list']:
-                recording = track['recording']
-                albumdata['tracks'].append({
-                    'title': recording['title'],
-                    'artist': recording['artist-credit-phrase']
-                })
+                for track in medium['track-list']:
+                    recording = track['recording']
+                    albumdata['tracks'].append({
+                        'title': recording['title'],
+                        'artist': recording['artist-credit-phrase']
+                    })
 
-            result.append(albumdata)
+                result.append(albumdata)
         return result
 
     @classmethod
@@ -241,7 +247,17 @@ class Albumdata:
                 print('=' * max_width)
                 print('Albumdata sources available:')
                 for i in range(1, len(results) + 1):
-                    print('{}) {}'.format(i, results[i - 1]['source']))
+                    result = results[i - 1]
+                    source_name = result['source']
+                    extended_title = result['title']
+                    if result['cd_count'] > 1:
+                        extended_title += ' (CD {})'.format(
+                            result['cd_number'])
+
+                    print('{}) {}: {}'.format(
+                        i,
+                        source_name,
+                        extended_title))
                 print('=' * max_width)
             else:
                 print('Source {}: {}'.format(
@@ -497,7 +513,9 @@ class Albumdata:
             'title': '',
             'date': '',
             'albumartist': '',
-            'tracks': []
+            'tracks': [],
+            'cd_number': 1,
+            'cd_count': 1
         }
 
         # We do this to avoid emitting anchors in the yaml (which it
@@ -516,9 +534,12 @@ class Albumdata:
             # Check that the track count is correct
             if len(result['tracks']) != track_count:
                 print(' '.join("""\
-                    Warning: Source {} dropped for wrong track count (Got {},
-                    {} expected)""".format(
-                        result['source'], len(result['tracks']), track_count
+                    Note: Dropped CD {} of source {} for
+                    wrong track count (Got {}, {} expected)""".format(
+                        result['cd_number'],
+                        result['source'],
+                        len(result['tracks']),
+                        track_count
                     ).split()), file=sys.stderr)
                 dropped.append(result)
                 continue

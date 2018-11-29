@@ -15,6 +15,8 @@ testdata = {
         'title': 'Test album',
         'albumartist': 'Test Artist',
         'date': '2018-01',
+        'cd_count': 1,
+        'cd_number': 1,
         'tracks': [
                 {
                     'title': 'Test track',
@@ -350,7 +352,7 @@ def test_select_albumdata(capsys, monkeypatch, albumdata):
     expected.append("""\
 ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -375,7 +377,7 @@ a: abort
 > All sources viewed, returning to listing
 ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -385,7 +387,7 @@ a: abort
 
 > ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -396,7 +398,7 @@ a: abort
 > You can only choose current source when looking at a source
 ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -423,7 +425,7 @@ a: abort
     expected.append("""\
 ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -434,7 +436,7 @@ a: abort
 > Source number must be between 1 and 1
 ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -447,7 +449,7 @@ a: abort
     expected.append("""\
 ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -458,7 +460,7 @@ a: abort
 > Invalid command: tööt
 ============================================================
 Albumdata sources available:
-1) Test data
+1) Test data: Test album
 ============================================================
 0: return to listing
 1-1: select source
@@ -485,6 +487,24 @@ a: abort
 
         assert out == expected[test_index]
 
+
+def test_select_albumdata_multicd(capsys, monkeypatch, albumdata):
+    fake_input_generator = (a for a in ('a',))
+    def fake_input(prompt):
+        print(prompt, end='')
+        try:
+            return next(fake_input_generator)
+        except StopIteration:
+            return
+
+    testdata['cd_number'] = 3
+    testdata['cd_count'] = 3
+
+    monkeypatch.setattr('builtins.input', fake_input)
+    albumdata.Albumdata._select_albumdata([testdata])
+    out, err = capsys.readouterr()
+
+    assert "1) Test data: Test album (CD 3)" in out
 
 def test_previous_result(monkeypatch, albumdata):
     monkeypatch.setattr('os.path.isfile', lambda *x: True)

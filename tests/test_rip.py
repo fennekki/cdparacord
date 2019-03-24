@@ -256,6 +256,10 @@ def test_tag_track(monkeypatch, get_fake_config):
             return 'test'
 
         @property
+        def multiartist(self):
+            return False
+
+        @property
         def title(self):
             return 'test'
 
@@ -291,7 +295,7 @@ def test_tag_track(monkeypatch, get_fake_config):
         def __init__(*a, **b):
             import mutagen
             raise mutagen.MutagenError('something')
-    
+
     monkeypatch.setattr('mutagen.easyid3.EasyID3', FakeFile2)
     monkeypatch.setattr('mutagen.File', FakeFile)
 

@@ -59,10 +59,22 @@ class Albumdata:
         self._ripdir = albumdata['ripdir']
         self._tracks = []
         counter = 0
+
         for trackdata in albumdata['tracks']:
             counter = counter + 1
             trackdata['tracknumber'] = counter
             self._tracks.append(Track(trackdata))
+
+        # Find out if there are multiple artists by seeing if at least
+        # one of the track artists differs from album artist
+        #
+        # This check used to be per-track only later in the rip process
+        # which caused issues.
+        if any(t.artist != self.albumartist for t in self._tracks):
+            self.multiartist = True
+        else:
+            self.multiartist = False
+
 
     @staticmethod
     def _print_albumdata(albumdata):
@@ -306,8 +318,6 @@ class Albumdata:
 
     @classmethod
     def _generate_filename(cls, data, track, tracknumber, config):
-        # TODO: We need the filters here
-        # Also, the templates
         safetyfilter = config.get('safetyfilter')
         target_template = string.Template(config.get('target_template'))
         s = {

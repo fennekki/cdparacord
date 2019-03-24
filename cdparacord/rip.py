@@ -62,7 +62,7 @@ class Rip:
         """Tag track and plop it in the dict."""
         try:
             audiofile = mutagen.easyid3.EasyID3(temp_encoded)
-        except:
+        except mutagen.MutagenError:
             audiofile = mutagen.File(temp_encoded, easy=True)
             audiofile.add_tags()
 

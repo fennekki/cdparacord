@@ -7,7 +7,7 @@ name = "pypi"
 musicbrainzngs = '~=0.6'
 discid = '~=1.1'
 mutagen = '~=1.41'
-PyYAML = '~=3.13'
+PyYAML = '~=5.1'
 click = '~=7.0'
 
 [dev-packages]

@@ -66,9 +66,10 @@ class Rip:
             audiofile = mutagen.File(temp_encoded, easy=True)
             audiofile.add_tags()
 
-        if (track.artist != self._albumdata.albumartist
+        # We only tag albumartist on multi-artist albums, or if we're
+        # set to always tag albumartist.
+        if (self._albumdata.multiartist
                 or self._config.get('always_tag_albumartist')):
-            # We only tag albumartist Sometimes
             audiofile['albumartist'] = self._albumdata.albumartist
 
         # This is information we always save and presumably always have

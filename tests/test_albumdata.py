@@ -249,6 +249,17 @@ def test_albumdata_tracks(albumdata):
     assert a.albumartist == 'Test Artist'
     assert a.title == 'Test album'
     assert a.date == '2018-01'
+    # This albumdata has a single artist
+    assert a.multiartist == False
+
+    # Also test that we can initialise a multiartist data
+    testdata2 = copy.deepcopy(testdata)
+    testdata2['tracks'][0]['artist'] = 'Test Artist 2'
+    a = albumdata.Albumdata(testdata2)
+    # We now have differing artist and albumartist but otherwise
+    # matching data
+    assert a.multiartist == True
+
 
 
 def test_initialise_albumdata(albumdata):

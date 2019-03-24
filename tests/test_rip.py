@@ -289,7 +289,8 @@ def test_tag_track(monkeypatch, get_fake_config):
 
     class FakeFile2(FakeFile):
         def __init__(*a, **b):
-            raise ValueError('something')
+            import mutagen
+            raise mutagen.MutagenError('something')
     
     monkeypatch.setattr('mutagen.easyid3.EasyID3', FakeFile2)
     monkeypatch.setattr('mutagen.File', FakeFile)

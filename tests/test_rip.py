@@ -41,19 +41,17 @@ def test_construct_rip(monkeypatch):
 def test_rip_pipeline(monkeypatch, get_fake_config):
     """Test constructing Rip and running first pipeline function."""
     class FakeTrack:
-        def __init__(self):
-            self.tracknumber = 1
+        def __init__(self, number):
+            self.tracknumber = number
 
         @property
         def filename(self):
             return '/tmp/oispa-kaljaa/final/test.mp3'
 
-    fake_track = FakeTrack()
-
     class FakeAlbumdata:
         @property
         def tracks(self):
-            return [fake_track]
+            return [FakeTrack(2), FakeTrack(3)]
 
         @property
         def ripdir(self):
@@ -77,7 +75,8 @@ def test_rip_pipeline(monkeypatch, get_fake_config):
     monkeypatch.setattr('shutil.copy2', lambda x, y: True)
 
     fake_config = get_fake_config()
-    r = rip.Rip(FakeAlbumdata(), FakeDeps(), fake_config, 1, 1, True)
+    # Rip from 2 to 3, therefore hitting both tracks
+    r = rip.Rip(FakeAlbumdata(), FakeDeps(), fake_config, 2, 3, True)
 
     # Use isfile to cover both paths
     asyncio.set_event_loop(asyncio.new_event_loop())
@@ -104,11 +103,15 @@ def test_rip_pipeline(monkeypatch, get_fake_config):
     asyncio.get_event_loop().close()
     fake_config.fail_all = False
 
-    # Track number past the range (and as such: empty ripped tracks)
-    fake_track.tracknumber = 2
+    # Try ripping both tracks 1 and 4 (separately), neither of which
+    # exists
+    r = rip.Rip(FakeAlbumdata(), FakeDeps(), fake_config, 1, 1, True)
     asyncio.set_event_loop(asyncio.new_event_loop())
     r.rip_pipeline()
-    fake_track.tracknumber = 1
+
+    r = rip.Rip(FakeAlbumdata(), FakeDeps(), fake_config, 4, 4, True)
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    r.rip_pipeline()
 
 
 def test_rip_track(monkeypatch, get_fake_config):

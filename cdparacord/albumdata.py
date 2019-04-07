@@ -324,7 +324,7 @@ class Albumdata:
             'album': data['title'],
             'artist': track['artist'],
             'albumartist': data['albumartist'],
-            'tracknumber': '{:02}'.format(tracknumber),
+            'tracknumber': '{:02}'.format(int(tracknumber)),
             'track': track['title']
         }
 

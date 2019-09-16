@@ -5,6 +5,13 @@ import os
 import os.path
 import shutil
 import string
+from typing import (
+    Dict,
+    Union,
+)
+from .albumdata import Albumdata, Track
+from .dependency import Dependency
+from .config import Config
 from .error import CdparacordError
 
 
@@ -13,8 +20,14 @@ class RipError(CdparacordError):
 
 
 class Rip:
-    def __init__(self, albumdata, deps, config, begin_track, end_track,
-            continue_rip):
+    def __init__(
+            self,
+            albumdata: Albumdata,
+            deps: Dependency,
+            config: Config,
+            begin_track: int,
+            end_track: int,
+            continue_rip: bool):
         self._albumdata = albumdata
         self._deps = deps
         self._config = config
@@ -30,7 +43,7 @@ class Rip:
         self._continue_rip = continue_rip
         # Here's where the temporary -> permanent filenames are recorded
         # so we can move them to the target dir
-        self._tagged_files = {}
+        self._tagged_files: Dict[str, str] = {}
 
     def _arg_expand(self, task_args, one_file, *,
             all_files=None, out_file=None):
@@ -58,8 +71,12 @@ class Rip:
                 final_args.append(res)
         return final_args
 
-    async def _tag_track(self, track, temp_encoded):
+    async def _tag_track(
+            self,
+            track: Track,
+            temp_encoded: str) -> None:
         """Tag track and plop it in the dict."""
+        audiofile: Union[mutagen.easyid3.EasyID3, mutagen.FileType]
         try:
             audiofile = mutagen.easyid3.EasyID3(temp_encoded)
         except mutagen.MutagenError:
@@ -85,7 +102,10 @@ class Rip:
 
         self._tagged_files[temp_encoded] = track.filename
 
-    async def _encode_track(self, track, temp_filename):
+    async def _encode_track(
+            self,
+            track: Track,
+            temp_filename: str) -> None:
         """Encode track and kick off tag and post_encode."""
         temp_encoded = os.path.join(
             self._albumdata.ripdir,

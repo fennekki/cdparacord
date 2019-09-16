@@ -1,6 +1,10 @@
 """The module for finding external dependencies."""
 
 import os
+from typing import (
+    Dict,
+)
+from .config import Config
 from .error import CdparacordError
 
 
@@ -14,11 +18,11 @@ class Dependency:
     This essentially performs partial configuration validation, because
     most of the external dependencies are configurable.
     """
-    def __init__(self, config):
+    def __init__(self, config: Config):
         self._config = config
         self._discover()
 
-    def _find_executable(self, name):
+    def _find_executable(self, name: str) -> str:
         """Locate an executable and return its path if it exists."""
         # isfile checks both that file exists and is a file, os.access
         # with X_OK checks file has executable bit
@@ -37,7 +41,7 @@ class Dependency:
         raise DependencyError(
             'Executable {} not found or not executable'.format(name))
 
-    def _verify_action_params(self, action):
+    def _verify_action_params(self, action: Dict[str, str]) -> None:
         """Confirm certain things about action configuration."""
         if len(action) > 1:
             multiple_actions = ', '.join(action.keys())
@@ -63,7 +67,7 @@ class Dependency:
                     'Found {} parameter {} with type {} (str expected)'
                         .format(action_key, item, type(item).__name__))
 
-    def _discover(self):
+    def _discover(self) -> None:
         """Discover dependencies and ensure they exist."""
 
         # Find the executables, and verify parameters for post-actions
@@ -92,13 +96,13 @@ class Dependency:
             raise DependencyError('Could not find libdiscid') from e
 
     @property
-    def encoder(self):
+    def encoder(self) -> str:
         return self._encoder
 
     @property
-    def editor(self):
+    def editor(self) -> str:
         return self._editor
 
     @property
-    def cdparanoia(self):
+    def cdparanoia(self) -> str:
         return self._cdparanoia

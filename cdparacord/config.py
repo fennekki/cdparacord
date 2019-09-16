@@ -5,6 +5,10 @@ import sys
 import yaml
 import textwrap
 from copy import deepcopy
+from typing import (
+    Any,
+    Dict,
+)
 from .error import CdparacordError
 from .xdg import XDG_CONFIG_HOME
 
@@ -186,7 +190,7 @@ class Config:
                 raise ConfigError('Could not open configuration file')
 
 
-    def get(self, key):
+    def get(self, key: str) -> Any:
         """Fetch a configuration value.
 
         NOTE: Unlike dict.get, Config.get throws KeyError on access!
@@ -212,7 +216,7 @@ class Config:
         """
         return self._config[key]
 
-    def update(self, d, *, quiet_ignore=True):
+    def update(self, d: Dict[str, Any], *, quiet_ignore: bool = True):
         """Update configuration from provided dict.
 
         If quiet_ignore is False, messages will be printed to stderr

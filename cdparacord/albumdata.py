@@ -10,7 +10,16 @@ import tempfile
 import textwrap
 import unicodedata
 import yaml
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Union,
+)
 from .appinfo import __version__, __url__
+from .config import Config
+from .dependency import Dependency
 from .error import CdparacordError
 from .xdg import XDG_MUSIC_DIR
 
@@ -20,35 +29,35 @@ class AlbumdataError(CdparacordError):
 
 
 class Track:
-    def __init__(self, trackdata):
-        self._title = trackdata['title']
-        self._artist = trackdata['artist']
-        self._filename = trackdata['filename']
-        self._tracknumber = trackdata['tracknumber']
+    def __init__(self, trackdata: Dict[str, str]):
+        self._title: str = trackdata['title']
+        self._artist: str = trackdata['artist']
+        self._filename: str = trackdata['filename']
+        self._tracknumber: str = trackdata['tracknumber']
 
     @property
-    def title(self):
+    def title(self) -> str:
         """Print title of this track."""
         return self._title
 
     @property
-    def artist(self):
+    def artist(self) -> str:
         """Print artist of this track."""
         return self._artist
 
     @property
-    def filename(self):
+    def filename(self) -> str:
         """Print target filename for this track."""
         return self._filename
 
     @property
-    def tracknumber(self):
+    def tracknumber(self) -> str:
         """Print track number for this track."""
         return self._tracknumber
 
 
 class Albumdata:
-    def __init__(self, albumdata):
+    def __init__(self, albumdata: Dict[str, Any]):
         """Initialises an Albumdata object from a dict.
 
         The dict albumdata contains the "plain" album data usually
@@ -57,7 +66,7 @@ class Albumdata:
         """
         self._dict = albumdata
         self._ripdir = albumdata['ripdir']
-        self._tracks = []
+        self._tracks: List[Track] = []
         counter = 0
 
         for trackdata in albumdata['tracks']:
@@ -77,7 +86,7 @@ class Albumdata:
 
 
     @staticmethod
-    def _print_albumdata(albumdata):
+    def _print_albumdata(albumdata: Dict[str, Any]) -> None:
         """Print albumdata to fit a terminal.
 
         This is powerfully hacky.
@@ -132,9 +141,9 @@ class Albumdata:
         print('-' * width)
 
     @staticmethod
-    def _albumdata_from_cdstub(cdstub):
+    def _albumdata_from_cdstub(cdstub: Dict[str, Any]) -> Dict[str, Any]:
         """Convert MusicBrainz cdstub to albumdata."""
-        albumdata = {}
+        albumdata: Dict[str, Any] = {}
 
         albumdata['source'] = 'MusicBrainz CD stub'
         albumdata['title'] = cdstub['title']
@@ -155,16 +164,16 @@ class Albumdata:
         return albumdata
 
     @staticmethod
-    def _albumdata_from_disc(disc):
+    def _albumdata_from_disc(disc: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Convert MusicBrainz disc result to multiple albumdata."""
-        result = []
+        result: List[Dict[str, Any]] = []
 
         releases = disc['release-list']
         for release in releases:
             cd_number = 0
             for medium in release['medium-list']:
                 cd_number +=1
-                albumdata = {}
+                albumdata: Dict[str, Any] = {}
 
                 albumdata['source'] = 'MusicBrainz'
                 albumdata['title'] = release['title']
@@ -188,7 +197,7 @@ class Albumdata:
         return result
 
     @classmethod
-    def _albumdata_from_musicbrainz(cls, disc):
+    def _albumdata_from_musicbrainz(cls, disc: str) -> List:
         """Convert MusicBrainz result to list of usable albumdata."""
         musicbrainzngs.set_useragent('cdparacord', __version__, __url__)
         try:
@@ -206,7 +215,9 @@ class Albumdata:
         return []
 
     @classmethod
-    def _albumdata_from_previous_rip(cls, albumdata_file):
+    def _albumdata_from_previous_rip(
+            cls,
+            albumdata_file: str) -> Optional[Dict[str, Any]]:
         if os.path.isfile(albumdata_file):
             with open(albumdata_file, 'r') as f:
                 loaded_albumdata = yaml.safe_load(f)
@@ -217,9 +228,11 @@ class Albumdata:
                             albumdata_file))
                 loaded_albumdata['source'] = 'Previous rip'
                 return loaded_albumdata
+        else:
+            return None
 
     @classmethod
-    def _get_track_count(cls, cdparanoia):
+    def _get_track_count(cls, cdparanoia: str) -> int:
         """Find track count by running cdparanoia."""
         # Let's do a dirty hack to find the track count!
         proc = subprocess.run([cdparanoia, '-sQ'],
@@ -243,8 +256,12 @@ class Albumdata:
             elif line[0:5] == 'TOTAL':
                 extract_next = True
 
+        raise CdparacordError("Could not determine track count")
+
     @classmethod
-    def _select_albumdata(cls, results):
+    def _select_albumdata(
+            cls,
+            results: List) -> Optional[Dict]:
         max_width, max_height = shutil.get_terminal_size()
 
         state = 0
@@ -317,7 +334,12 @@ class Albumdata:
                     print("Invalid command: {}".format(s))
 
     @classmethod
-    def _generate_filename(cls, data, track, tracknumber, config):
+    def _generate_filename(
+            cls,
+            data: Dict[str, Any],
+            track: Dict[str, Any],
+            tracknumber: Union[str, int],
+            config: Config):
         safetyfilter = config.get('safetyfilter')
         target_template = string.Template(config.get('target_template'))
         s = {
@@ -382,7 +404,12 @@ class Albumdata:
         return target_template.substitute(s)
 
     @classmethod
-    def _edit_albumdata(cls, selected, track_count, editor, config):
+    def _edit_albumdata(
+            cls,
+            selected: Optional[Dict],
+            track_count: int,
+            editor: str,
+            config: Config) -> Optional[Albumdata]:
         if selected is None:
             return None
 
@@ -473,7 +500,10 @@ class Albumdata:
                 state = input("> ").strip()
 
     @classmethod
-    def from_user_input(cls, deps, config):
+    def from_user_input(
+            cls,
+            deps: Dependency,
+            config: Config) -> Optional[Albumdata]:
         """Initialises an Albumdata object from interactive user input.
 
         Returns None if the user chose to abort the selection.
@@ -501,7 +531,7 @@ class Albumdata:
 
         # Data to be merged to the albumdata we select
         common_albumdata = {
-            'discid': str(disc),
+            'discid': disc.id,
             'ripdir': ripdir
         }
         results = []
@@ -516,9 +546,9 @@ class Albumdata:
         # Append results from MusicBrainz if needed
         if use_musicbrainz:
             # We get a list of results so we call extend
-            results.extend(cls._albumdata_from_musicbrainz(disc))
+            results.extend(cls._albumdata_from_musicbrainz(disc.id))
 
-        emptydata = {
+        emptydata: Dict[str, Any] = {
             'source': 'Empty data',
             'title': '',
             'date': '',

@@ -2,6 +2,10 @@ import os
 import click
 import shutil
 import yaml
+from typing import (
+    Any,
+    Dict,
+)
 from .albumdata import Albumdata
 from .config import Config
 from .dependency import Dependency
@@ -25,7 +29,11 @@ from .rip import Rip
 @click.option('--submit', 'submit_to_musicbrainz', is_flag=True, default=False,
     help="""Ignore all other options and instead open the MusicBrainz
     submission page.""")
-def main(begin_track, end_track, **options):
+def main(
+        begin_track: int,
+        end_track: int,
+        # TODO: if options can be non-flag things, needs editing
+        **options: bool) -> None:
     """Rip, encode and tag CDs and fetch albumdata from MusicBrainz.
 
     If only BEGIN_TRACK is specified, only the specified track will be

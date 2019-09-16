@@ -373,7 +373,9 @@ class Albumdata:
         # These shouldn't need safety filtering, they're not from
         # albumdata input
         
-        XDG_MUSIC_DIR: str = (os.environ.get('XDG_MUSIC_DIR') or
+        s["home"] = os.environ["HOME"]
+        XDG_MUSIC_DIR = os.environ.get(
+            "XDG_MUSIC_DIR",
             os.path.join(os.environ['HOME'], 'Music'))
         s["xdgmusic"] = XDG_MUSIC_DIR
 

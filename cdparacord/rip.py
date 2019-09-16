@@ -7,7 +7,10 @@ import shutil
 import string
 from typing import (
     Dict,
+    List,
+    Optional,
     Union,
+    cast
 )
 from .albumdata import Albumdata, Track
 from .dependency import Dependency
@@ -45,14 +48,19 @@ class Rip:
         # so we can move them to the target dir
         self._tagged_files: Dict[str, str] = {}
 
-    def _arg_expand(self, task_args, one_file, *,
-            all_files=None, out_file=None):
+    def _arg_expand(
+            self,
+            task_args: List[str],
+            one_file: str, 
+            *,
+            all_files: Optional[List[str]] = None,
+            out_file: Optional[str] = None) -> List[str]:
         """Expand placeholders in task arguments.
 
         If all_files is not None, the all_files placeholder will be
         substituted. Otherwise it won't. Same for out_file.
         """
-        final_args = []
+        final_args: List[str] = []
         placeholder = '<ALLFILES_PLACEHOLDER>'
         for arg in task_args:
             template = string.Template(arg)
@@ -66,7 +74,7 @@ class Rip:
             # It's not an "actual" template thing. Because reasons.
             res = template.substitute(subs)
             if res == placeholder:
-                final_args.extend(all_files)
+                final_args.extend(cast(List[str], all_files))
             else:
                 final_args.append(res)
         return final_args
@@ -141,7 +149,7 @@ class Rip:
         # Always run after the previous due to awaits
         await self._tag_track(track, temp_encoded)
 
-    async def _rip_track(self, track):
+    async def _rip_track(self, track: Track) -> None:
         """Rip track and kick off encoder and post_rip."""
         # Create temp filename here before acquiring lock to minimise
         # time locked and because I want to
@@ -185,7 +193,7 @@ class Rip:
         # Always run after the previous due to awaits
         await self._encode_track(track, temp_filename)
 
-    async def _post_finished(self):
+    async def _post_finished(self) -> None:
         """Run post_finished tasks.
 
         These are a bit more hefty than the other ones so they get their
@@ -231,7 +239,7 @@ class Rip:
                     raise RipError('post_finished task {} failed'.format(
                         task_name))
 
-    def rip_pipeline(self):
+    def rip_pipeline(self) -> None:
         """Rip cd and run given extra tasks.
 
         See config.py for more

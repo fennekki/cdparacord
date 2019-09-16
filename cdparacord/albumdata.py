@@ -22,7 +22,6 @@ from .appinfo import __version__, __url__
 from .config import Config
 from .dependency import Dependency
 from .error import CdparacordError
-from .xdg import XDG_MUSIC_DIR
 
 from .typing.albumdata import (
         AlbumdataDict,
@@ -235,33 +234,6 @@ class Albumdata:
             return None
 
     @classmethod
-    def _get_track_count(cls, cdparanoia: str) -> int:
-        """Find track count by running cdparanoia."""
-        # Let's do a dirty hack to find the track count!
-        proc = subprocess.run([cdparanoia, '-sQ'],
-                              universal_newlines=True,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT)
-        # Error if it failed
-        proc.check_returncode()
-
-        output = proc.stdout
-        extract_next = False
-        lines = output.split('\n')
-        # Go through lines in reverse until we find TOTAL
-        # The line above that has the number
-        for i in reversed(range(len(lines))):
-            line = lines[i]
-            if extract_next:
-                parts = line.split(".")
-                num = int(parts[0].strip())
-                return num
-            elif line[0:5] == 'TOTAL':
-                extract_next = True
-
-        raise CdparacordError("Could not determine track count")
-
-    @classmethod
     def _select_albumdata(
             cls,
             results: List[AugmentedAlbumdataDict]
@@ -401,10 +373,8 @@ class Albumdata:
         # These shouldn't need safety filtering, they're not from
         # albumdata input
         
-        HOME = os.getenv('HOME')
-
-        if HOME is not None:
-            s["home"] = HOME
+        XDG_MUSIC_DIR: str = (os.environ.get('XDG_MUSIC_DIR') or
+            os.path.join(os.environ['HOME'], 'Music'))
         s["xdgmusic"] = XDG_MUSIC_DIR
 
         return target_template.substitute(s)
@@ -530,10 +500,7 @@ class Albumdata:
             tmp=tempfile.gettempdir(), uid=os.getuid(), discid=disc)
         albumdata_file = os.path.join(ripdir, 'albumdata.yaml')
 
-        track_count = cls._get_track_count(deps.cdparanoia)
-
-        if track_count is None:
-            raise AlbumdataError('Could not figure out track count')
+        track_count = disc.last_track_num
 
         results: List[AugmentedAlbumdataDict] = []
 

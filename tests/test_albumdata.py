@@ -310,45 +310,6 @@ Test track                     Test Artist
 
     assert out == expected
 
-def test_get_track_count(monkeypatch, albumdata):
-    """Test track count getting with a fake cdparanoia output."""
-    testdata = """\
-cdparanoia III release 10.2 (September 11, 2008)
-
-
-Table of contents (audio tracks only):
-track        length               begin        copy pre ch
-===========================================================
-  1.    1000 [00:10.00]        150 [00:01.50]    no   no  2
-TOTAL   1150 [00:11.50]        (audio only)
-"""
-    class FakeProcess:
-        def check_returncode(self):
-            pass
-        
-        @property
-        def stdout(self):
-            return testdata
-
-    obj = FakeProcess()
-    monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
-    assert albumdata.Albumdata._get_track_count('') == 1
-
-
-def test_get_no_track_count(monkeypatch, albumdata):
-    """Test track count getting with empty cdparanoia output."""
-    class FakeProcess:
-        def check_returncode(self):
-            pass
-        
-        @property
-        def stdout(self):
-            return ''
-
-    obj = FakeProcess()
-    monkeypatch.setattr('subprocess.run', lambda *x, **y: obj)
-    assert albumdata.Albumdata._get_track_count('') == None
-
 
 def test_select_albumdata(capsys, monkeypatch, albumdata):
     """Test that the albumdata selection works as expected.
@@ -544,9 +505,17 @@ def test_no_previous_result(monkeypatch, albumdata):
     assert a is None
 
 def test_from_user_input(monkeypatch, albumdata):
-    monkeypatch.setattr('discid.read', lambda: 'test')
+    class FakeDisc:
+        @property
+        def id(self):
+            return "test"
+
+        @property
+        def last_track_num(self):
+            return 1
+
+    monkeypatch.setattr('discid.read', lambda: FakeDisc())
     monkeypatch.setattr('os.getuid', lambda: 1000)
-    monkeypatch.setattr('cdparacord.albumdata.Albumdata._get_track_count', lambda *x: 1)
     monkeypatch.setattr('cdparacord.albumdata.Albumdata._albumdata_from_previous_rip', lambda *x: testdata)
     monkeypatch.setattr('cdparacord.albumdata.Albumdata._albumdata_from_musicbrainz', lambda *x: [])
     monkeypatch.setattr('cdparacord.albumdata.Albumdata._select_albumdata', lambda *x: None)
@@ -588,13 +557,6 @@ def test_from_user_input(monkeypatch, albumdata):
     config.dict['use_musicbrainz'] = False
     config.dict['reuse_albumdata'] = False
     assert albumdata.Albumdata.from_user_input(deps, config) is None
-
-    # It's plausible that we would get None here
-    config.dict['use_musicbrainz'] = False
-    config.dict['reuse_albumdata'] = True
-    monkeypatch.setattr('cdparacord.albumdata.Albumdata._get_track_count', lambda *x: None)
-    with pytest.raises(albumdata.AlbumdataError):
-        albumdata.Albumdata.from_user_input(deps, config)
 
 
 def test_edit_albumdata(monkeypatch, albumdata):

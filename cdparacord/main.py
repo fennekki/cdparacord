@@ -47,6 +47,14 @@ def main(
 
     See documentation for more.
     """
+    
+    # If we don't have a HOME directory, terminate immediately.
+    try:
+        os.environ["HOME"]
+    except KeyError:
+        raise CdparacordError(
+            "No home directory exists, cdparacord can't run")
+
     # Read configuration
     config = Config()
     # Update does not add new configuration options (because the way new

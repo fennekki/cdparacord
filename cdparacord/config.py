@@ -10,7 +10,6 @@ from typing import (
     Dict,
 )
 from .error import CdparacordError
-from .xdg import XDG_CONFIG_HOME
 
 class ConfigError(CdparacordError):
     """Raised on configuration error."""
@@ -138,6 +137,8 @@ class Config:
 
         Raises ConfigError on failure.
         """
+        XDG_CONFIG_HOME: str = (os.environ.get('XDG_CONFIG_HOME') or
+            os.path.join(os.environ['HOME'], '.config'))
 
         config_dir_name = 'cdparacord'
         config_dir = os.path.join(XDG_CONFIG_HOME, config_dir_name)

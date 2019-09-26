@@ -40,10 +40,11 @@ setup(
 
     install_requires=[
         'musicbrainzngs>=0.6',
-        'discid>=1.1',
-        'mutagen>=1.40',
-        'PyYAML>=3.12',
-        'click>=6.7'
+        'discid>=1.2',
+        'mutagen>=1.41',
+        'PyYAML>=5.1',
+        'click>=7.0',
+        'mypy>=0.720',
     ],
 
     package_data={},

@@ -41,10 +41,6 @@ def mock_dependencies(monkeypatch):
             pass
     monkeypatch.setattr('cdparacord.main.Rip', Rip)
 
-    monkeypatch.setattr('shutil.rmtree', lambda x: True)
-    monkeypatch.setattr('os.makedirs', lambda x, y, exist_ok: True)
-    monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('{}'))
-
     class FakeDisc:
         @property
         def submission_url(self):
@@ -55,8 +51,15 @@ def mock_dependencies(monkeypatch):
 
     with tempfile.TemporaryDirectory(prefix="cdparacord-test-config") as d:
         # Make a fake home dir
+        monkeypatch.setattr('shutil.rmtree', lambda x: True)
+        monkeypatch.setattr('os.makedirs', lambda x, y, exist_ok: True)
+        monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('{}'))
         monkeypatch.setenv("HOME", d)
         yield
+        # we want rmtree in particular to be real again so the tempdir
+        # will clean up correctly. That's why we need to undo within
+        # this context
+        monkeypatch.undo()
 
 
 def test_main(mock_dependencies):

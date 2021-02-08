@@ -282,7 +282,7 @@ Test track          Test Artist          /home/user/Music/Test Artist/Test [...]
 """
 
     monkeypatch.setattr('shutil.get_terminal_size',
-        lambda: (80, 24))
+        lambda *args, **kwargs: (80, 24))
 
     albumdata.Albumdata._print_albumdata(testdata)
     out, err = capsys.readouterr()
@@ -303,7 +303,7 @@ Test track                     Test Artist
 """
 
     monkeypatch.setattr('shutil.get_terminal_size',
-        lambda: (60, 24))
+        lambda *args, **kwargs: (60, 24))
 
     albumdata.Albumdata._print_albumdata(testdata)
     out, err = capsys.readouterr()
@@ -443,7 +443,7 @@ a: abort
 > """)
 
     monkeypatch.setattr('shutil.get_terminal_size',
-        lambda: (60, 24))
+        lambda *args, **kwargs: (60, 24))
 
     for test_index in range(len(input_sequence)):
         fake_input_generator = (i for i in input_sequence[test_index])

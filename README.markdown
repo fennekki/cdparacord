@@ -42,21 +42,29 @@ Options:
 
 ## Requirements
 
-Cdparacord requires at least Python 3.5 for async.
+### Python
 
-By default it requires LAME for encoding. You can, however, customise the
-encoder as you see fit, though configuration documentation is currently scarce.
-See config.py for more.
+At least Python 3.5 is required for async, but it is recommended to use a more
+recent, supported version. You can see tox.ini for the versions that cdparacord
+is tested to function with.
 
-Additionally, libdiscid0 (0.6.2 known to work) is needed for extracting disc
-ids sent to MusicBrainz, and cdparanoia (10.2 known to work) for the actual
-ripping.
+### libdiscid
 
-You need the `cdparanoia` and encoder applications to either be in your
-executable search path or specified in the configuration with their full paths.
+libdiscid 0.22 or later is needed for the `discid` module to function.
 
-There are no version checks built into `cdparacord`; If a specific version of
-libdiscid0 or cdparanoia causes it to malfunction, please file a bug.
+### cdparanoia
+
+A cdparanoia binary is required as cdparacord invokes the executable instead of
+using libparanoia. Versions older than 10.2 have not been tested with.
+
+The binary needs to be in your `$PATH` for the default configuration to work.
+If this is not the case, configure the full path to the `cdparanoia` binary
+instead.
+
+### LAME
+
+By default, LAME is used for encoding. This can be configured, but the
+documentation is scarce (see config.py).
 
 ## Configuration
 

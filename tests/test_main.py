@@ -4,6 +4,8 @@ import pytest
 import click.testing
 import io
 import cdparacord
+import tempfile
+
 
 @pytest.fixture
 def mock_dependencies(monkeypatch):
@@ -39,10 +41,6 @@ def mock_dependencies(monkeypatch):
             pass
     monkeypatch.setattr('cdparacord.main.Rip', Rip)
 
-    monkeypatch.setattr('shutil.rmtree', lambda x: True)
-    monkeypatch.setattr('os.makedirs', lambda x, y, exist_ok: True)
-    monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('{}'))
-
     class FakeDisc:
         @property
         def submission_url(self):
@@ -50,6 +48,18 @@ def mock_dependencies(monkeypatch):
 
     monkeypatch.setattr('discid.read', lambda *x: FakeDisc())
     monkeypatch.setattr('webbrowser.open', lambda x: True)
+
+    with tempfile.TemporaryDirectory(prefix="cdparacord-test-config") as d:
+        # Make a fake home dir
+        monkeypatch.setattr('shutil.rmtree', lambda x: True)
+        monkeypatch.setattr('os.makedirs', lambda x, y, exist_ok: True)
+        monkeypatch.setattr('builtins.open', lambda *x: io.StringIO('{}'))
+        monkeypatch.setenv("HOME", d)
+        yield
+        # we want rmtree in particular to be real again so the tempdir
+        # will clean up correctly. That's why we need to undo within
+        # this context
+        monkeypatch.undo()
 
 
 def test_main(mock_dependencies):
@@ -68,7 +78,6 @@ def test_main_submit(mock_dependencies):
     click.testing.CliRunner().invoke(
         main.main, args=['--submit'],
         catch_exceptions=False)
-
 
 def test_main_begin_track_out_of_range(mock_dependencies):
     """Test that several invalid inputs to main raise."""
@@ -94,3 +103,13 @@ def test_main_albumdata_none(mock_dependencies, monkeypatch):
     res = click.testing.CliRunner().invoke(main.main, catch_exceptions=False)
 
     assert res.output == 'User aborted albumdata selection.\n'
+
+
+def test_no_homedir(mock_dependencies, monkeypatch):
+    """Test that we quit out when there's no HOME."""
+    from cdparacord import main
+
+    monkeypatch.delenv("HOME")
+
+    with pytest.raises(cdparacord.error.CdparacordError):
+        click.testing.CliRunner().invoke(main.main, catch_exceptions=False)

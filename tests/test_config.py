@@ -1,114 +1,78 @@
 """Tests for the config module.
-
-NOTE: If you intend to import Config and monkeypatch the config dir (you
-should, to make it work) you need to ensure that you only import Config
-inside your test function. Otherwise xdg.XDG_CONFIG_HOME will, in the
-automated environment, fail to be evaluated and the tests will crash.
 """
 import pytest
 import os
 import importlib
 import yaml
+import tempfile
 
-
-# TODO: Instead of this mess, try to mock the entire xdg module. Its
-# problem is currently that all the code runs module-scope. Changing the
-# xdg module could work too.
+from cdparacord import config
 
 ### Fixtures ###
 
+@pytest.fixture
+def mock_home(monkeypatch):
+    """Create a fake HOME and XDG_CONFIG_HOME."""
+    with tempfile.TemporaryDirectory(prefix="cdparacord-test-config") as d:
+        monkeypatch.setenv("HOME", d)
+        monkeypatch.setenv("XDG_CONFIG_HOME", os.path.join(d, ".config"))
+        os.makedirs(os.environ["XDG_CONFIG_HOME"], mode=0o700)
+        yield os.environ["HOME"]
 
 @pytest.fixture
-def _config_reload_yield_home(_monkeypatch_environment):
-    """Reload the config module for testing and yield $HOME.
+def mock_config_dir(mock_home):
+    """Create a fake config dir."""
+    config_dir = os.path.join(os.environ["XDG_CONFIG_HOME"], "cdparacord")
+    os.makedirs(config_dir, 0o700)
+    yield config_dir
 
-    This uses the _monkeypatch_environment fixture to ensure that $HOME
-    is monkeypatched before we get into any of this.
-    """
-    # Important to reload xdg before config, so the changes in xdg
-    # propagate
-    import cdparacord.xdg
-    import cdparacord.config
-    importlib.reload(cdparacord.xdg)
-    importlib.reload(cdparacord.config)
-    yield _monkeypatch_environment
+@pytest.fixture
+def mock_config(mock_config_dir):
+    """Create a fake config file."""
+    config_file = os.path.join(mock_config_dir, "config.yaml")
+    with open(config_file, "w"):
+        pass
+    # Make it self-readable only
+    os.chmod(config_file, 0o600)
+    yield config_file
 
 
 @pytest.fixture
-def mock_temp_home(_config_reload_yield_home):
-    """Ensure a fake homedir exists."""
-    yield _config_reload_yield_home
-
-
-@pytest.fixture
-def mock_uncreatable_config_dir(_config_reload_yield_home):
-    """Ensure a config dir cannot be created.
-
-    This involves creating an XDG_CONFIG_HOME that cannot be written to.
-    """
-    from cdparacord import xdg
+def mock_uncreatable_config_dir(mock_home):
+    """Ensure a config dir cannot be created."""
     # Create unreadable dir
-    os.mkdir(xdg.XDG_CONFIG_HOME, 0o000)
-    yield _config_reload_yield_home
+    os.chmod(os.environ["XDG_CONFIG_HOME"], 0o000)
+    yield mock_home
     # Make it usable again so we don't error when the cleanup starts
     # deleting these directories
-    os.chmod(xdg.XDG_CONFIG_HOME, 0o700)
+    os.chmod(os.environ["XDG_CONFIG_HOME"], 0o700)
 
 
 @pytest.fixture
-def _create_config_file_paths(_config_reload_yield_home):
-    """Yield the configuration file path.
-
-    TODO: Some way of keeping sync with the config filename in Config in
-    case it changes?
-    """
-    from cdparacord import xdg
-    config_dir = os.path.join(xdg.XDG_CONFIG_HOME, 'cdparacord')
-    config_file = os.path.join(config_dir, 'config.yaml')
-    os.makedirs(config_dir)
-    # Open and close the file, creating it
-    os.close(os.open(config_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL))
-    yield (config_dir, config_file)
-
-
-@pytest.fixture
-def mock_config_file(_create_config_file_paths):
-    """Ensure the config file can be read."""
-    config_dir, config_file = _create_config_file_paths
-    yield config_file
-
-
-@pytest.fixture
-def mock_unreadable_config_file(_create_config_file_paths):
+def mock_unreadable_config(mock_config):
     """Ensure the config file cannot be read."""
-    config_dir, config_file = _create_config_file_paths
     # Make config file forbidden to read
-    os.chmod(config_file, 0o000)
-    yield config_file
+    os.chmod(mock_config, 0o000)
+    yield mock_config
     # Make the tempfile accessible again
-    os.chmod(config_file, 0o600)
-
+    os.chmod(mock_config, 0o600)
 
 ### Tests ###
 
-
-def test_create_config(mock_temp_home):
+def test_create_config(mock_home):
     """Try creating configuration dir in an empty home directory."""
-    from cdparacord import config
     c = config.Config()
 
 
-def test_get_encoder(mock_temp_home):
+def test_get_encoder(mock_home):
     """Try getting the value of 'encoder' from a default configuration."""
-    from cdparacord import config
     c = config.Config()
     # Would error if we couldn't find it
     c.get('encoder')
 
 
-def test_fail_to_get_variable(mock_temp_home):
+def test_fail_to_get_variable(mock_home):
     """Try to fail getting a nonexistent value from defaults."""
-    from cdparacord import config
     c = config.Config()
     with pytest.raises(KeyError):
         c.get('nonextant')
@@ -120,16 +84,14 @@ def test_fail_to_create_config_dir(mock_uncreatable_config_dir):
     Specifically, the fixture sets up permissions so we're not allowed
     to create the directory.
     """
-    from cdparacord import config
     with pytest.raises(config.ConfigError):
         c = config.Config()
 
 
-def test_read_config_file(mock_config_file):
+def test_read_config_file(mock_config):
     """Try to read a configuration file."""
-    from cdparacord import config
 
-    config_file = mock_config_file
+    config_file = mock_config
 
     # Setup our expectations
     var_name = 'editor'
@@ -144,11 +106,10 @@ def test_read_config_file(mock_config_file):
     assert c.get(var_name) == expected_value
 
 
-def test_read_invalid_config(mock_config_file):
+def test_read_invalid_config(mock_config):
     """Try to fail to read a valid configuration from file."""
-    from cdparacord import config
 
-    config_file = mock_config_file
+    config_file = mock_config
 
     with open(config_file, 'w') as f:
         yaml.safe_dump(["wrong"], f)
@@ -157,20 +118,17 @@ def test_read_invalid_config(mock_config_file):
         c = config.Config()
 
 
-def test_fail_to_open_config_file(mock_unreadable_config_file):
+def test_fail_to_open_config_file(mock_unreadable_config):
     """Try to fail to open a configuration file.
 
     Specifically, the fixture sets up permission so we're not allowed to
     open the file, even though it exists.
     """
-    from cdparacord import config
     with pytest.raises(config.ConfigError):
         c = config.Config()
 
 
-def test_update_config_no_unknown_keys(mock_temp_home, capsys):
-    from cdparacord import config
-
+def test_update_config_no_unknown_keys(mock_home, capsys):
     c = config.Config()
     c.update({'keep_ripdir': True}, quiet_ignore=False)
 
@@ -178,9 +136,7 @@ def test_update_config_no_unknown_keys(mock_temp_home, capsys):
     assert err == ""
 
 
-def test_update_config_unknown_keys(mock_temp_home, capsys):
-    from cdparacord import config
-
+def test_update_config_unknown_keys(mock_home, capsys):
     c = config.Config()
     c.update({'invalid_key': True}, quiet_ignore=False)
 
@@ -188,9 +144,7 @@ def test_update_config_unknown_keys(mock_temp_home, capsys):
     assert err == 'Warning: Unknown configuration key invalid_key\n'
 
 
-def test_update_config_with_none(mock_temp_home, capsys):
-    from cdparacord import config
-
+def test_update_config_with_none(mock_home, capsys):
     c = config.Config()
     c.update({'keep_ripdir': None}, quiet_ignore=False)
 
@@ -198,9 +152,7 @@ def test_update_config_with_none(mock_temp_home, capsys):
     assert err == ""
 
 
-def test_update_config_quiet_ignore(mock_temp_home, capsys):
-    from cdparacord import config
-
+def test_update_config_quiet_ignore(mock_home, capsys):
     c = config.Config()
     c.update({'invalid_key': True}, quiet_ignore=True)
 
@@ -208,10 +160,8 @@ def test_update_config_quiet_ignore(mock_temp_home, capsys):
     assert err == ''
 
 
-def test_ensure_default_encoder_keys_are_strings(mock_temp_home):
+def test_ensure_default_encoder_keys_are_strings(mock_home):
     """Test default encoder configuration."""
-    from cdparacord import config
-
     c = config.Config()
     
     assert len(c.get('encoder')) == 1
@@ -225,10 +175,8 @@ def test_ensure_default_encoder_keys_are_strings(mock_temp_home):
             # And the params should be strings
             assert type(item) is str
 
-def test_ensure_default_postaction_keys_are_strings(mock_temp_home):
+def test_ensure_default_postaction_keys_are_strings(mock_home):
     """Test default encoder configuration."""
-    from cdparacord import config
-
     c = config.Config()
 
     for post_action in ('post_rip', 'post_encode', 'post_finished'):

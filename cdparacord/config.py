@@ -5,8 +5,11 @@ import sys
 import yaml
 import textwrap
 from copy import deepcopy
+from typing import (
+    Any,
+    Dict,
+)
 from .error import CdparacordError
-from .xdg import XDG_CONFIG_HOME
 
 class ConfigError(CdparacordError):
     """Raised on configuration error."""
@@ -134,6 +137,8 @@ class Config:
 
         Raises ConfigError on failure.
         """
+        XDG_CONFIG_HOME: str = (os.environ.get('XDG_CONFIG_HOME') or
+            os.path.join(os.environ['HOME'], '.config'))
 
         config_dir_name = 'cdparacord'
         config_dir = os.path.join(XDG_CONFIG_HOME, config_dir_name)
@@ -186,7 +191,7 @@ class Config:
                 raise ConfigError('Could not open configuration file')
 
 
-    def get(self, key):
+    def get(self, key: str) -> Any:
         """Fetch a configuration value.
 
         NOTE: Unlike dict.get, Config.get throws KeyError on access!
@@ -212,7 +217,7 @@ class Config:
         """
         return self._config[key]
 
-    def update(self, d, *, quiet_ignore=True):
+    def update(self, d: Dict[str, Any], *, quiet_ignore: bool = True):
         """Update configuration from provided dict.
 
         If quiet_ignore is False, messages will be printed to stderr

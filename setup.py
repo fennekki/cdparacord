@@ -15,7 +15,7 @@ setup(
     name='cdparacord',
     version=__version__,
 
-    description='Quick & dirty cdparanoia wrapper',
+    description='CD ripping, encoding, and tagging wrapper',
     long_description=long_description,
     url=__url__,
 
@@ -23,14 +23,15 @@ setup(
 
     license='BSD 2-clause',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Environment :: Console',
         'License :: OSI Approved :: BSD License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.5'
         'Programming Language :: Python :: 3.6'
         'Programming Language :: Python :: 3.7'
+        'Programming Language :: Python :: 3.8'
+        'Programming Language :: Python :: 3.9'
         'Topic :: Multimedia :: Sound/Audio :: CD Audio :: CD Ripping'
     ],
 
@@ -39,12 +40,12 @@ setup(
     packages=find_packages(exclude=['tests']),
 
     install_requires=[
-        'musicbrainzngs>=0.6',
+        'musicbrainzngs>=0.7',
         'discid>=1.2',
-        'mutagen>=1.44',
-        'PyYAML>=5.3',
-        'click>=7.0',
-        'mypy>=0.770',
+        'mutagen>=1.45',
+        'PyYAML>=5.4',
+        'click>=7.1',
+        'mypy>=0.800',
     ],
 
     package_data={},
